@@ -5330,6 +5330,21 @@ var LiveSvg = class {
   }
 };
 
+// src/client/avatar-motion.js
+var AVATAR_MOTIONS = Object.freeze({
+  idle: { expression: "neutral", cycle: [["idle", 7], ["wink", 1.6], ["idle", 7]] },
+  thinking: { expression: "focused", cycle: [["idle", 1.5], ["thinking", 2.6], ["idle", 2.5]] },
+  searching: { expression: "curious", cycle: [["idle", 1.5], ["orbit", 3.4], ["idle", 2.5]] },
+  working: { expression: "attentive", cycle: [["idle", 2], ["loading", 2], ["idle", 3]] },
+  sending: { expression: "attentive", cycle: [["idle", 1], ["notification", 2.2], ["idle", 3]] },
+  orbit: { expression: "curious", cycle: [["idle", 2], ["orbit", 3.4], ["idle", 3]] },
+  waiting: { expression: "neutral", cycle: [["idle", 6], ["snooze", 2.6], ["idle", 6]] },
+  alert: { expression: "surprised", cycle: [["idle", 1.5], ["question", 2], ["idle", 4]] },
+  done: { expression: "happy", cycle: [["check", 1.8], ["idle", 2]] }
+});
+var avatarMotion = (state) => AVATAR_MOTIONS[state] ?? AVATAR_MOTIONS.idle;
+var avatarCycle = (state) => avatarMotion(state).cycle.map(([anim, dur]) => ({ anim, dur }));
+
 // src/client/mark.js
 var import_react2 = require("react");
 var GROK_SHAPES = {
@@ -5368,7 +5383,7 @@ var GROK_SHAPES = {
   gem: "gem"
 };
 var STATES2 = ["idle", "thinking", "searching", "working", "sending", "orbit", "waiting", "alert", "done"];
-var botState = (running, activity, alert) => alert ? "alert" : running ? typeof activity?.tool === "string" ? toolState(activity.tool) : STATES2.includes(activity) && activity !== "waiting" ? activity : activity ? "working" : "thinking" : activity === "waiting" ? "waiting" : "idle";
+var botState = (running, activity, alert) => alert ? "alert" : running ? activity?.switching ? "thinking" : typeof activity?.tool === "string" ? toolState(activity.tool) : STATES2.includes(activity) && activity !== "waiting" ? activity : activity?.speaking ? "sending" : activity ? "working" : "thinking" : activity === "waiting" ? "waiting" : "idle";
 var toolState = (name) => /^(message_bot|stop_bot|create_bot|update_bot|create_group|update_group|delete_group|post_to_group)$/.test(name) ? "sending" : /search|fetch|browse|read|grep|glob|list|recall/i.test(name) ? "searching" : "working";
 function useGaze(ref, enabled) {
   (0, import_react2.useEffect)(() => {
@@ -5403,7 +5418,6 @@ function useGaze(ref, enabled) {
   }, [enabled]);
 }
 var FIDGETS = ["hop", "sway", "stretch", "look"];
-var MOTIONS = { idle: ["idle", "neutral"], thinking: ["idle", "focused"], searching: ["idle", "curious"], working: ["idle", "attentive"], sending: ["nod", "neutral"], orbit: ["idle", "neutral"], waiting: ["idle", "neutral"], alert: ["wide", "surprised"], done: ["nod", "happy"] };
 var BLOB_MAP = { blob: "circle", pebble: "pebble", squircle: "squircle", tablet: "capsule", wedge: "triangle", cloud: "cloud", teardrop: "droplet", heart: "heart", flower: "flower", clover: "clover", square: "squircle", sparkle: "star", house: "ghost", star: "star", hex: "hexagon", bean: "pebble", gem: "gem", dome: "ghost", shield: "diamond", leaf: "leaf", capsule: "capsule" };
 function blobShape(id) {
   const direct = id?.startsWith("blob-") ? id.slice(5) : null;
@@ -5411,19 +5425,23 @@ function blobShape(id) {
   const old = id?.startsWith("grok-") ? id.slice(5) : GROK_SHAPES[id];
   return BLOB_MAP[old] ?? "circle";
 }
-function blobMarkup(shape, color, size2, state, time, seed, still) {
-  const [anim, expression] = MOTIONS[state] ?? MOTIONS.idle;
-  const avatar = { v: 2, shape, color, expression, cycle: [{ anim, dur: anim === "idle" ? 4.8 : 3 }], seed };
+function avatarModel(shape, color, state, time, seed, still) {
+  const avatar = { v: 2, shape, color, expression: avatarMotion(state).expression, cycle: avatarCycle(state), seed };
   const model = frame(avatar, time, { still });
   model.eyes.forEach((eye) => {
     eye.fill = "#fff";
   });
-  return toSvgString(model, { size: size2 }).replace('viewBox="-100 -100 200 200"', 'viewBox="-85 -85 170 170"');
+  return model;
+}
+function blobMarkup(shape, color, size2, state, time, seed, still) {
+  return toSvgString(avatarModel(shape, color, state, time, seed, still), { size: size2 });
 }
 function BotMark({ bot, look: given, size: size2 = 36, state = "idle", live = false, gaze = false, pokeable = false, label }) {
   const look = given ?? lookOf(bot);
   const ref = (0, import_react2.useRef)(null);
   const [poked, setPoked] = (0, import_react2.useState)(false);
+  const desiredMotion = (0, import_react2.useRef)(state);
+  desiredMotion.current = poked ? "done" : state;
   const [broken, setBroken] = (0, import_react2.useState)("");
   const image = look.image && look.image !== broken ? look.image : void 0;
   useGaze(ref, gaze);
@@ -5433,9 +5451,13 @@ function BotMark({ bot, look: given, size: size2 = 36, state = "idle", live = fa
     if (!live || image || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches || document.body.dataset.btMotion === "quiet") return void 0;
     const element = ref.current;
     if (!element) return void 0;
-    const start = performance.now();
+    const svg2 = new LiveSvg(element.ownerDocument, { trails: 12, parts: 3 });
+    svg2.el.setAttribute("width", "100%");
+    svg2.el.setAttribute("height", "100%");
+    element.replaceChildren(svg2.el);
     const seed = fnv1a(String(bot?.id ?? look.shape));
-    let visible = true, request = 0, last = 0;
+    let activeState = desiredMotion.current, started = performance.now(), previous = null, transition = 0;
+    let visible = true, request = 0, last = 0, lastModel = null;
     const observer = typeof IntersectionObserver === "function" ? new IntersectionObserver((entries2) => {
       visible = entries2[0]?.isIntersecting ?? true;
     }) : null;
@@ -5443,8 +5465,19 @@ function BotMark({ bot, look: given, size: size2 = 36, state = "idle", live = fa
     const animate = (now) => {
       if (visible && !document.hidden && now - last >= 33) {
         last = now;
-        const time = (now - start) / 1e3;
-        element.innerHTML = blobMarkup(selectedShape, color, size2, poked ? "done" : state, time, seed, false);
+        if (activeState !== desiredMotion.current) {
+          previous = lastModel;
+          activeState = desiredMotion.current;
+          started = now;
+          transition = now;
+        }
+        let model = avatarModel(selectedShape, color, activeState, (now - started) / 1e3, seed, false);
+        if (previous && now - transition < 300) {
+          const t2 = Math.max(0, (now - transition) / 300);
+          model = mixModels(previous, model, t2 * t2 * (3 - 2 * t2));
+        } else previous = null;
+        svg2.update(model);
+        lastModel = model;
       }
       request = requestAnimationFrame(animate);
     };
@@ -5453,7 +5486,7 @@ function BotMark({ bot, look: given, size: size2 = 36, state = "idle", live = fa
       cancelAnimationFrame(request);
       observer?.disconnect();
     };
-  }, [selectedShape, image, live, color, size2, state, poked]);
+  }, [selectedShape, image, live, color, size2]);
   (0, import_react2.useEffect)(() => {
     if (!poked) return void 0;
     const timer = setTimeout(() => setPoked(false), 1200);
@@ -11013,7 +11046,7 @@ function BotRow({ bot, roster, actions, useSessions, useSessionStatus, useSessio
   const doing = useActivity((map) => map[id]);
   const groups = workKeys(useGroupWork(useWork, (rooms) => Object.entries(rooms).flatMap(([roomId, entries2]) => entries2.filter((entry) => entry.botId === id).map((entry) => ({ id: roomId, ...doingOf(entry) })))));
   const away = !running && groups.length > 0;
-  const state = botState(running || away, doing, alert);
+  const state = botState(running || away, doing ?? (away ? groups[0] : void 0), alert);
   const runningLine = running && doing ? doingLine(doing) : null;
   const awayLine = away ? workLine(roster.roomsById[groups[0].id]?.name ?? t("a group chat"), groups[0], groups.length - 1) : null;
   const waits = workKeys(useWork ? useWork((work) => JSON.stringify(work.waiting?.[id] ?? null)) : "null");
@@ -17952,7 +17985,7 @@ function dshHint(dsh, shown) {
   return t("Version {version}", { version: dsh.current });
 }
 var linkProps = (href) => ({ className: "bt-soft bt-soft-sm bt-about-link", href, target: "_blank", rel: "noopener noreferrer" });
-var JARVIS_REPOSITORY = "https://github.com/xqtx9527/jarvis";
+var JARVIS_REPOSITORY = "https://github.com/xqtx9527/nomi";
 function AboutPage({ Section, Row: Row3 }) {
   const repo = JARVIS_REPOSITORY;
   return [
@@ -18542,7 +18575,7 @@ function MainBotsSection({ roster, actions, run: run2 }) {
     ) : null
   );
 }
-var MOTIONS2 = [["quiet", "Quiet"], ["normal", "Normal"], ["lively", "Lively"]];
+var MOTIONS = [["quiet", "Quiet"], ["normal", "Normal"], ["lively", "Lively"]];
 function MotionSection({ roster, actions, run: run2 }) {
   const motion = roster.prefs?.motion === "quiet" || roster.prefs?.motion === "lively" ? roster.prefs.motion : "normal";
   return (0, import_react44.createElement)(
@@ -18551,7 +18584,7 @@ function MotionSection({ roster, actions, run: run2 }) {
     (0, import_react44.createElement)(
       SetRow,
       { label: t("Bot animation") },
-      (0, import_react44.createElement)(Segmented, { label: t("Bot animation"), value: motion, className: "bt-motion-seg" }, MOTIONS2.map(([id, label]) => (0, import_react44.createElement)("button", {
+      (0, import_react44.createElement)(Segmented, { label: t("Bot animation"), value: motion, className: "bt-motion-seg" }, MOTIONS.map(([id, label]) => (0, import_react44.createElement)("button", {
         key: id,
         type: "button",
         "aria-pressed": motion === id,

@@ -59,7 +59,7 @@ function dshHint(dsh, shown) {
 const linkProps = href => ({ className: 'bt-soft bt-soft-sm bt-about-link', href, target: '_blank', rel: 'noopener noreferrer' })
 
 // Set this to the user's repository after it has been identified.
-const JARVIS_REPOSITORY = 'https://github.com/xqtx9527/jarvis'
+const JARVIS_REPOSITORY = 'https://github.com/xqtx9527/nomi'
 
 export function AboutPage({ Section, Row }) {
   const repo = JARVIS_REPOSITORY

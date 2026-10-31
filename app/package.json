@@ -1,9 +1,9 @@
 {
   "name": "deepseek-bot",
-  "productName": "Jarvis",
+  "productName": "Nomi",
   "version": "0.2.6",
   "private": true,
-  "description": "Jarvis: my own always-on Bot team on DeepSeek Harness.",
+  "description": "Nomi: my own always-on Bot team on DeepSeek Harness.",
   "author": "Fei2411",
   "homepage": "https://github.com/Fei2411/DS-Bot",
   "desktopName": "deepseek-bot.desktop",

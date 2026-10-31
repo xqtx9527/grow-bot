@@ -2,9 +2,9 @@
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, session, shell as electronShell, Tray } from 'electron'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
-import { release } from 'node:os'
+import { homedir, release } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
@@ -61,6 +61,7 @@ const trayIconFile = () => join(assets, process.platform === 'win32' ? 'tray.ico
 // Windows 11 draws Mica behind the page; mica.css lets it through the sidebar.
 const mica = micaAvailable(process.platform, release())
 if (process.env.DS_BOT_SHELL_DATA) app.setPath('userData', process.env.DS_BOT_SHELL_DATA)
+else if (process.platform === 'darwin' && existsSync(join(homedir(), 'Library', 'Application Support', 'Jarvis'))) app.setPath('userData', join(homedir(), 'Library', 'Application Support', 'Jarvis'))
 
 let mainWindow
 let host
@@ -250,7 +251,7 @@ async function start() {
       mkdirSync(app.getPath('userData'), { recursive: true })
       writeFileSync(join(app.getPath('userData'), 'language.json'), `${JSON.stringify({ language: id })}\n`)
     } catch (error) {
-      console.error('Jarvis: the language was not saved:', error instanceof Error ? error.message : String(error))
+      console.error('Nomi: the language was not saved:', error instanceof Error ? error.message : String(error))
     }
   })
   // ds-bot's Bot browsers: one webview per lease, in the storage of the Bot's key.
@@ -304,7 +305,7 @@ async function start() {
   ipcMain.handle(IPC.browserImportLive, async (event, sourceId, close) => {
     assertWindow(event)
     const source = (await listSources()).find((item) => item.id === sourceId)
-    if (!source) throw new Error('Jarvis: an unknown browser profile')
+    if (!source) throw new Error('Nomi: an unknown browser profile')
     let outcome
     try {
       outcome = await importFromBrowser(source, { close: close === true })
@@ -321,9 +322,9 @@ async function start() {
   })
   ipcMain.handle(IPC.browserImportApply, async (event, key, id) => {
     assertWindow(event)
-    if (typeof key !== 'string' || !key.startsWith('bot:')) throw new Error('Jarvis: a Bot storage key is required')
+    if (typeof key !== 'string' || !key.startsWith('bot:')) throw new Error('Nomi: a Bot storage key is required')
     const pending = cookieImports.take(typeof id === 'string' ? id : '')
-    if (!pending) throw new Error('Jarvis: this import is no longer pending')
+    if (!pending) throw new Error('Nomi: this import is no longer pending')
     const storage = session.fromPartition(partitionOf(key))
     return applyCookies(storage, pending.cookies)
   })
@@ -395,14 +396,14 @@ async function start() {
 // without the copied Sessions' folders, so the old team's folders are not offered as projects.
 // Before that, the app's own DSH reads every chat of the team once: a newer DSH can write
 // records that this one refuses while the log format stays the same. Such a chat stops the
-// copy, as a newer log format does; 'quit' means the user updates Jarvis first, and
+// copy, as a newer log format does; 'quit' means the user updates Nomi first, and
 // 'stopped' that the app quit during the copy.
 async function copyTeam(where, newHost, newCheck, signal) {
   const unreadable = await checkTeam(where, newCheck, signal)
   if (signal.aborted) return 'stopped'
   if (unreadable > 0) {
     const t = text()
-    const { response } = await dialog.showMessageBox({ type: 'warning', title: 'Jarvis', noLink: true, message: t.newer(unreadable), buttons: [t.quit, t.startEmpty], defaultId: 0, cancelId: 0, signal })
+    const { response } = await dialog.showMessageBox({ type: 'warning', title: 'Nomi', noLink: true, message: t.newer(unreadable), buttons: [t.quit, t.startEmpty], defaultId: 0, cancelId: 0, signal })
     if (signal.aborted) return 'stopped'
     if (response === 0) return 'quit'
     saveLocations(where)
@@ -419,11 +420,11 @@ async function copyTeam(where, newHost, newCheck, signal) {
     await warm.stop()
     host = undefined
     const summary = await importTeam({ ...where.import, to: where.dataDir, workspace: where.workspace, dsh: getDshRuntimeVersion(), signal })
-    console.log(`Jarvis: copied ${String(summary.bots)} Bots and ${String(summary.sessions)} Sessions from ${summary.from}`)
+    console.log(`Nomi: copied ${String(summary.bots)} Bots and ${String(summary.sessions)} Sessions from ${summary.from}`)
   } catch (error) {
     if (signal.aborted) return 'stopped'
     console.error(error)
-    await dialog.showMessageBox({ type: 'warning', title: 'Jarvis', message: text().failed(error instanceof Error ? error.message : String(error)), signal })
+    await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: text().failed(error instanceof Error ? error.message : String(error)), signal })
     if (signal.aborted) return 'stopped'
   } finally {
     signal.removeEventListener('abort', stopWarm)
@@ -453,14 +454,14 @@ async function checkTeam(where, newCheck, signal) {
     try {
       signal.throwIfAborted()
       const { unreadable } = await check.start()
-      if (unreadable.length > 0) console.warn(`Jarvis: this DSH cannot read ${unreadable.join(', ')}`)
+      if (unreadable.length > 0) console.warn(`Nomi: this DSH cannot read ${unreadable.join(', ')}`)
       return unreadable.length
     } finally {
       signal.removeEventListener('abort', stop)
       await check.stop()
     }
   } catch (error) {
-    if (!signal.aborted) console.error('Jarvis: the chats were not checked before the copy:', error)
+    if (!signal.aborted) console.error('Nomi: the chats were not checked before the copy:', error)
     return 0
   } finally {
     mainWindow?.setProgressBar(-1)
@@ -483,13 +484,13 @@ async function moveData(workspace) {
     for (const current of new Set([workspace, places.workspace])) {
       const problem = moveProblem({ from: places.dataDir, to, workspace: current, dshHome, program: app.isPackaged ? programFolder() : undefined })
       if (problem === undefined) continue
-      await dialog.showMessageBox(owner, { type: 'warning', title: 'Jarvis', message: problem === 'dsh' ? t.inDsh(dshHome) : t[MOVE_PROBLEMS[problem]], buttons: ['OK'] })
+      await dialog.showMessageBox(owner, { type: 'warning', title: 'Nomi', message: problem === 'dsh' ? t.inDsh(dshHome) : t[MOVE_PROBLEMS[problem]], buttons: ['OK'] })
       return true
     }
     return false
   }
   if (await refused()) return false
-  const { response } = await dialog.showMessageBox(owner, { type: 'question', title: 'Jarvis', noLink: true, message: t.moveConfirm(to), detail: t.moveDetail(places.dataDir), buttons: [t.move, t.cancel], defaultId: 0, cancelId: 1 })
+  const { response } = await dialog.showMessageBox(owner, { type: 'question', title: 'Nomi', noLink: true, message: t.moveConfirm(to), detail: t.moveDetail(places.dataDir), buttons: [t.move, t.cancel], defaultId: 0, cancelId: 1 })
   if (response !== 0 || stopping || await refused()) return false
   const signal = copyAbort.signal
   copying = (async () => {
@@ -503,7 +504,7 @@ async function moveData(workspace) {
     }
     // Another DSH on the same data would go on writing while the copy is made.
     if (teamInUse(places.dataDir)) {
-      await dialog.showMessageBox({ type: 'warning', title: 'Jarvis', message: t.moveInUse })
+      await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: t.moveInUse })
       app.relaunch()
       return
     }
@@ -520,7 +521,7 @@ async function moveData(workspace) {
     } catch (error) {
       if (signal.aborted) return
       console.error(error)
-      await dialog.showMessageBox({ type: 'warning', title: 'Jarvis', message: t.moveFailed(error instanceof Error ? error.message : String(error)) })
+      await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: t.moveFailed(error instanceof Error ? error.message : String(error)) })
     } finally {
       mainWindow?.setProgressBar(-1)
     }
@@ -538,7 +539,7 @@ const notePage = message => `data:text/html;charset=utf-8,${encodeURIComponent(`
 // Windows and a Linux AppImage update themselves; macOS and a Linux deb ask to download the new
 // version. Throwaway runs check only a given feed and never ask.
 function startUpdates() {
-  // Personal build (Jarvis): the update feed belongs to the upstream project, so never check.
+  // Personal build (Nomi): the update feed belongs to the upstream project, so never check.
   if (!process.env.JARVIS_ALLOW_UPSTREAM_UPDATES) return undefined
   const feed = process.env.DS_BOT_UPDATE_URL || undefined
   const throwaway = Boolean(process.env.DS_BOT_HOME)
@@ -579,7 +580,7 @@ async function askRestartNow(version) {
   // After a failed start, fail() installs the update itself.
   if (failed) return false
   const t = localeText(UPDATE_TEXT)
-  const options = { type: 'info', title: 'Jarvis', message: t.ready(version), detail: t.readyDetail, buttons: [t.restart, t.later], defaultId: 0, cancelId: 1, noLink: true }
+  const options = { type: 'info', title: 'Nomi', message: t.ready(version), detail: t.readyDetail, buttons: [t.restart, t.later], defaultId: 0, cancelId: 1, noLink: true }
   const { response } = await (mainWindow ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options))
   return response === 0
 }
@@ -587,7 +588,7 @@ async function askRestartNow(version) {
 async function askDownloadNow(version) {
   if (failed) return false
   const t = localeText(UPDATE_TEXT)
-  const options = { type: 'info', title: 'Jarvis', message: t.available(version), detail: t.availableDetail, buttons: [t.download, t.later], defaultId: 0, cancelId: 1, noLink: true }
+  const options = { type: 'info', title: 'Nomi', message: t.available(version), detail: t.availableDetail, buttons: [t.download, t.later], defaultId: 0, cancelId: 1, noLink: true }
   const { response } = await (mainWindow ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options))
   return response === 0
 }
@@ -618,7 +619,7 @@ function createWindow() {
     // The window never squeezes the chat: RAIL_WIDTH + MIN_CHAT from ds-bot's
     // src/client/frame-layout.js is the avatar rail plus the smallest chat column.
     width: 1320, height: 860, minWidth: 508, minHeight: 480,
-    title: process.platform === 'darwin' ? ' ' : 'Jarvis', show: false, icon: iconFile,
+    title: process.platform === 'darwin' ? ' ' : 'Nomi', show: false, icon: iconFile,
     backgroundColor: mica ? '#00000000' : dark ? '#1b1b1c' : '#ffffff',
     // Frameless as in DSH Desktop: the caption buttons overlay the page's band. They keep the
     // sidebar's colors until the page sends the colors of the surface under them.
@@ -790,7 +791,7 @@ function setMenu() {
 function assertWindow(event) {
   const contents = mainWindow?.webContents
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('Jarvis: rejected IPC from an unknown page')
+    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('Nomi: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {
@@ -810,7 +811,7 @@ async function fail(error) {
   const throwaway = Boolean(process.env.DS_BOT_HOME)
   const t = localeText(UPDATE_TEXT)
   const next = found ? `\n\n${found.page ? t.onFailurePage(found.version) : t.onFailure(found.version)}` : ''
-  dialog.showErrorBox('Jarvis', `${text().notStarted}\n\n${error instanceof Error ? error.message : String(error)}${next}`)
+  dialog.showErrorBox('Nomi', `${text().notStarted}\n\n${error instanceof Error ? error.message : String(error)}${next}`)
   if (found?.page) {
     if (!throwaway) await electronShell.openExternal(found.page)
     app.quit()

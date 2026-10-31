@@ -957,7 +957,7 @@ var ZH = {
   "{share}% of all usage from {span}": "占 {span} 全部用量的 {share}%",
   // About
   "About DS Bot": "关于 DS Bot",
-  "About Jarvis": "关于 Jarvis",
+  "About Nomi": "关于 Nomi",
   "Repository not connected": "尚未连接仓库",
   Project: "项目",
   "Version {version}": "版本 {version}",
@@ -1108,7 +1108,7 @@ var ZH = {
   "Click again to remove. Other Bots can then read its folder, memory and chats.": "再点一次解除。其他 Bot 之后可以读取它的文件夹、记忆和对话。",
   "Nothing kept closed for this Bot": "这个 Bot 没有保留的保护",
   "Bot files": "Bot 文件",
-  "Jarvis data": "Jarvis 数据",
+  "Nomi data": "Nomi 数据",
   "Open folder": "打开文件夹",
   "Where Bots write their files, unless a Bot has a folder of its own.": "Bot 写出的文件默认存放在这里；单个 Bot 也可以在它自己的设置里单独指定文件夹。",
   "Team workspace": "总工作区",
@@ -17963,7 +17963,7 @@ function AboutPage({ Section, Row: Row3 }) {
       (0, import_react42.createElement)(
         "div",
         { className: "bt-about-copy" },
-        (0, import_react42.createElement)("span", { className: "bt-about-name" }, "Jarvis"),
+        (0, import_react42.createElement)("span", { className: "bt-about-name" }, "Nomi"),
         (0, import_react42.createElement)("span", { className: "bt-about-version" }, t("Version {version}", { version: "0.1" }))
       )
     ),
@@ -18284,7 +18284,7 @@ var PROVIDERS_CSS = `
 // src/client/settings.js
 var import_react44 = require("react");
 var capitalize2 = (word) => word[0].toUpperCase() + word.slice(1);
-var SETTINGS_PAGES = [["account", "Account and balance"], ["models", "Model settings"], ["general", "General"], ["bots", "Bots"], ["groups", "Group chats"], ["connectors", "Connectors"], ["capabilities", "Capabilities"], ["browser", "Browser"], ["schedules", "Scheduled tasks"], ["usage", "Usage"], ["secrets", "Secrets"], ["feedback", "Feedback"], ["about", "About Jarvis"]];
+var SETTINGS_PAGES = [["account", "Account and balance"], ["models", "Model settings"], ["general", "General"], ["bots", "Bots"], ["groups", "Group chats"], ["connectors", "Connectors"], ["capabilities", "Capabilities"], ["browser", "Browser"], ["schedules", "Scheduled tasks"], ["usage", "Usage"], ["secrets", "Secrets"], ["feedback", "Feedback"], ["about", "About Nomi"]];
 var PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, connectors: ConnectorIcon, capabilities: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon };
 function EmbeddedEntry({ entry, actions, owner = {} }) {
   const ops = (0, import_react44.useMemo)(() => entry.inject?.() ?? {}, [entry]);
@@ -18490,7 +18490,7 @@ function LocationsSection({ actions, run: run2 }) {
     ),
     data === null ? null : (0, import_react44.createElement)(
       SetRow,
-      { label: t("Jarvis data"), hint: data.path },
+      { label: t("Nomi data"), hint: data.path },
       (0, import_react44.createElement)(
         "div",
         { className: "bt-set-buttons" },

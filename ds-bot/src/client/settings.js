@@ -27,7 +27,7 @@ const capitalize = word => word[0].toUpperCase() + word.slice(1)
 // Settings dialog: a 198px page list beside the page. Bots and group chats each list
 // their members, and one opens on its own settings form. Usage widens the dialog.
 // Models is there only in a window without DSH's own settings, which carry the providers.
-const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['connectors', 'Connectors'], ['capabilities', 'Capabilities'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Secrets'], ['feedback', 'Feedback'], ['about', 'About Jarvis']]
+const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['connectors', 'Connectors'], ['capabilities', 'Capabilities'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Secrets'], ['feedback', 'Feedback'], ['about', 'About Nomi']]
 const PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, connectors: ConnectorIcon, capabilities: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon }
 
 function EmbeddedEntry({ entry, actions, owner = {} }) {
@@ -185,7 +185,7 @@ function LocationsSection({ actions, run }) {
   return h(SetSection, { title: t('Files'), className: 'bt-set-places' },
     h(SetRow, { label: t('Bot files'), hint: t('Where Bots write their files, unless a Bot has a folder of its own.') },
       team === null ? null : h(FolderMenu, { value: team, team: true, actions, run, onPick: pickTeam, disabled: moving })),
-    data === null ? null : h(SetRow, { label: t('Jarvis data'), hint: data.path },
+    data === null ? null : h(SetRow, { label: t('Nomi data'), hint: data.path },
       h('div', { className: 'bt-set-buttons' },
         app?.openPath ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => openFolder(data.path) }, t('Open folder')) : null,
         data.fixed ? null : h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: moving, onClick: () => { if (!busy.current) void run(app.moveData(team ?? undefined)) } }, t('Change…')))))

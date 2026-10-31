@@ -1,7 +1,7 @@
 appId: local.jarvis.app2
-productName: Jarvis
+productName: Nomi
 copyright: Personal build
-artifactName: Jarvis-${version}-${os}-${arch}.${ext}
+artifactName: Nomi-${version}-${os}-${arch}.${ext}
 directories:
   output: dist-pack
 files:

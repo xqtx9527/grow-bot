@@ -1,6 +1,6 @@
-# Jarvis
+# Nomi 糯米
 
-Jarvis 是一个基于 [DS Bot](https://github.com/Fei2411/DS-Bot) 和 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的桌面 AI 助手项目。当前版本为 **0.1**，仍在开发中。
+Nomi 糯米 是一个基于 [DS Bot](https://github.com/Fei2411/DS-Bot) 和 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的桌面 AI 助手项目。当前版本为 **0.1**，仍在开发中。
 
 ## 功能
 
@@ -15,7 +15,7 @@ Jarvis 是一个基于 [DS Bot](https://github.com/Fei2411/DS-Bot) 和 [DeepSeek
 
 桌面壳位于 [`app/`](app/)，Bot 插件位于 [`ds-bot/`](ds-bot/)。构建说明参见 [桌面应用文档](app/README.md)和[插件文档](ds-bot/README.md)。
 
-本仓库尚未发布可下载的 Jarvis 安装包。上游平台和安装说明不代表 Jarvis 版本已经在所有平台验证。
+本仓库尚未发布可下载的 Nomi 糯米 安装包。上游平台和安装说明不代表 Nomi 糯米 版本已经在所有平台验证。
 
 ## 致谢与许可
 

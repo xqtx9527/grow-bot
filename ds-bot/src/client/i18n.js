@@ -910,7 +910,7 @@ const ZH = {
   '{share}% of all usage from {span}': '占 {span} 全部用量的 {share}%',
   // About
   'About DS Bot': '关于 DS Bot',
-  'About Jarvis': '关于 Jarvis',
+  'About Nomi': '关于 Nomi',
   'Repository not connected': '尚未连接仓库',
   Project: '项目',
   'Version {version}': '版本 {version}',
@@ -1061,7 +1061,7 @@ const ZH = {
   'Click again to remove. Other Bots can then read its folder, memory and chats.': '再点一次解除。其他 Bot 之后可以读取它的文件夹、记忆和对话。',
   'Nothing kept closed for this Bot': '这个 Bot 没有保留的保护',
   'Bot files': 'Bot 文件',
-  'Jarvis data': 'Jarvis 数据',
+  'Nomi data': 'Nomi 数据',
   'Open folder': '打开文件夹',
   'Where Bots write their files, unless a Bot has a folder of its own.': 'Bot 写出的文件默认存放在这里；单个 Bot 也可以在它自己的设置里单独指定文件夹。',
   'Team workspace': '总工作区',

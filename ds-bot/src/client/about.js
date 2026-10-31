@@ -67,7 +67,7 @@ export function AboutPage({ Section, Row }) {
     h('div', { key: 'hero', className: 'bt-about-hero' },
       h('span', { className: 'bt-about-mark' }, h(BotMark, { look: { shape: 'blob-circle', color: 'black' }, bot: { id: 'about' }, size: 52, live: true })),
       h('div', { className: 'bt-about-copy' },
-        h('span', { className: 'bt-about-name' }, 'Jarvis'),
+        h('span', { className: 'bt-about-name' }, 'Nomi'),
         h('span', { className: 'bt-about-version' }, t('Version {version}', { version: '0.1' })))),
     h(Section, { key: 'project', title: t('Project') },
       repo ? h(Row, { label: t('Source code'), hint: repo.replace(/^https:\/\//, '') }, h('a', linkProps(repo), h(GitHubMark), t('Open')))

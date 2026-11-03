@@ -23,6 +23,7 @@ export const waitFor = async (check, what, timeout = 10_000) => {
  * @param {{ packaged?: boolean }} options whether the app is a packaged one, with an updater
  */
 export const startApp = async ({ packaged = true } = {}) => {
+  process.env.GROW_BOT_LANGUAGE = 'en'
   const home = mkdtempSync(join(tmpdir(), 'ds-bot-main-home-'))
   const workspace = join(home, 'workspace')
   mkdirSync(workspace, { recursive: true })

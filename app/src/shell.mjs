@@ -7,21 +7,21 @@ import { createTray } from './tray.mjs'
 
 export const SHELL_TEXT = {
   en: {
-    tooltip: 'Nomi',
-    open: 'Open Nomi',
-    quit: 'Quit Nomi',
-    notice: 'Nomi keeps running in the system tray. Its Bots go on working while the window is closed.',
+    tooltip: 'Grow Bot',
+    open: 'Open Grow Bot',
+    quit: 'Quit Grow Bot',
+    notice: 'Grow Bot keeps running in the system tray. Its Bots go on working while the window is closed.',
     noticeConfirm: 'OK',
-    fallback: 'The system tray is not available, so Nomi cannot stay in the background. Do you want to end it?',
+    fallback: 'The system tray is not available, so Grow Bot cannot stay in the background. Do you want to end it?',
     cancel: 'Cancel',
   },
   zh: {
-    tooltip: 'Nomi',
-    open: '打开 Nomi',
-    quit: '退出 Nomi',
-    notice: 'Nomi 会留在系统托盘里继续运行，关掉窗口时 Bot 们照常工作。',
+    tooltip: 'Grow Bot',
+    open: '打开 Grow Bot',
+    quit: '退出 Grow Bot',
+    notice: 'Grow Bot 会留在系统托盘里继续运行，关掉窗口时 Bot 们照常工作。',
     noticeConfirm: '好',
-    fallback: '系统托盘不可用，Nomi 不能留在后台。要结束它吗？',
+    fallback: '系统托盘不可用，Grow Bot 不能留在后台。要结束它吗？',
     cancel: '取消',
   },
 }
@@ -138,7 +138,7 @@ export function createShell(options) {
     } catch (error) {
       // Without a tray the window stays where the user can reach it; the app never vanishes.
       tray = undefined
-      log.warn(`Nomi: the system tray is not available: ${error instanceof Error ? error.message : String(error)}`)
+      log.warn(`Grow Bot: the system tray is not available: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -150,12 +150,12 @@ export function createShell(options) {
     const t = text()
     try {
       const { response } = await options.fallback.show({
-        type: 'question', title: 'Nomi', message: t.fallback,
+        type: 'question', title: 'Grow Bot', message: t.fallback,
         buttons: [t.quit, t.cancel], defaultId: 1, cancelId: 1, noLink: true,
       })
       if (response === 0) { quit(); return }
     } catch (error) {
-      log.warn(`Nomi: the fallback quit could not be asked: ${error instanceof Error ? error.message : String(error)}`)
+      log.warn(`Grow Bot: the fallback quit could not be asked: ${error instanceof Error ? error.message : String(error)}`)
     }
     // The window stays in the task bar, where the user can reach it.
     target.minimize()

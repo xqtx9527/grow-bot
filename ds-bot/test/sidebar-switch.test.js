@@ -43,7 +43,7 @@ runInNewContext(outputFiles[0].text, {
 })
 const { SHELL_CSS, SIDEBAR_CSS, TeamSidebar } = module.exports
 
-function navigationSidebar(wide, { leftDrawer = false } = {}) {
+function navigationSidebar(wide, { leftDrawer = false, pref = 'open' } = {}) {
   const calls = []
   const refs = []
   const bot = { id: 'writer', name: 'Writer', createdAt: 1 }
@@ -54,10 +54,12 @@ function navigationSidebar(wide, { leftDrawer = false } = {}) {
   actions.toggleSidebar = () => { calls.push(['toggleSidebar']) }
   actions.setLeftDrawer = (on) => { calls.push(['setLeftDrawer', on]) }
   const rows = []
+  const updateButtons = []
   const walk = (node) => {
     if (Array.isArray(node)) { node.forEach(walk); return }
     if (!node || typeof node !== 'object') return
     if (['BotRow', 'RoomRow', 'AgentRow'].includes(node.type?.name)) rows.push(node)
+    if (node.type?.name === 'UpdateButton') updateButtons.push(node)
     walk(node.props?.children)
   }
   const render = (nextWide = wide) => {
@@ -69,6 +71,7 @@ function navigationSidebar(wide, { leftDrawer = false } = {}) {
       wide, actions,
       useRoster: pick => pick(roster), useUi: pick => pick({ unread: {}, leftDrawer }), useRegistry: pick => pick({}),
       useSessions: pick => pick({ ids: [], byId: {} }), useUpdate: () => ({}),
+      useSidebarPref: pick => pick(pref),
     })
     renderRefs = undefined
     const effects = layoutEffects
@@ -78,8 +81,15 @@ function navigationSidebar(wide, { leftDrawer = false } = {}) {
     walk(tree)
   }
   render()
-  return { calls, rows, actions, render }
+  return { calls, rows, actions, render, updateButtons }
 }
+
+test('the update button on the narrow rail renders', () => {
+  viewport.innerWidth = 1280
+  const { updateButtons } = navigationSidebar(false, { pref: 'rail' })
+  assert.equal(updateButtons.length, 1)
+  assert.doesNotThrow(() => updateButtons[0].type(updateButtons[0].props))
+})
 
 for (const width of [390, 1023, 1024, 1280]) {
   for (const wide of [false, true]) {
@@ -340,7 +350,7 @@ test('the shell\'s collapsed sidebar keeps no track while its right column is cl
   assert.match(frame?.body ?? '', /grid-template-columns:0px/)
 })
 
-test('the column\'s top row hides it, on the rail too, and its edge is a drag grip', () => {
+test('the open column has only Search and New; the rail keeps the switch, and its edge is a drag grip', () => {
   viewport.innerWidth = 1280
   const calls = []
   const roster = { bots: [], rooms: [], agents: [], byId: {}, ready: true }
@@ -360,13 +370,28 @@ test('the column\'s top row hides it, on the rail too, and its edge is a drag gr
   for (const pref of ['open', 'rail']) {
     const tree = TeamSidebar(props(pref))
     const button = find(tree, collapse)
-    assert.ok(button?.props.className.split(' ').includes('bt-side-collapse'), pref)
-    button.props.onClick()
+    if (pref === 'open') {
+      // Only Search and New sit above the list.
+      assert.equal(button, undefined, pref)
+      const labels = []
+      const collect = node => {
+        if (Array.isArray(node)) return node.forEach(collect)
+        if (!node || typeof node !== 'object') return
+        const label = node.props?.['aria-label']
+        if (typeof label === 'string') labels.push(label)
+        collect(node.props?.children)
+      }
+      collect(tree)
+      assert.deepEqual(labels.filter(label => ['Search', 'New…', 'Collapse sidebar'].includes(label)), ['Search', 'New…'])
+    } else {
+      assert.ok(button?.props.className.split(' ').includes('bt-side-collapse'), pref)
+      button.props.onClick()
+    }
     const column = find(tree, node => node.type?.name === 'LeftColumn')
     assert.equal(column.props.mode, pref)
     assert.equal(typeof column.props.onGrip, 'function')
   }
-  assert.deepEqual(calls, ['toggle', 'toggle'])
+  assert.deepEqual(calls, ['toggle'])
   // Hidden, there is no column at all; the floating switch brings it back.
   const hidden = TeamSidebar(props('hidden'))
   assert.equal(find(hidden, node => node.type?.name === 'LeftColumn'), undefined)
@@ -428,7 +453,7 @@ test('the Bot footer lays out the account, another plugin\'s entry and the setti
   assert.equal(columnOf(document.querySelector('.x_settingsArea')), '3')
 })
 
-// #452: the Connect plugins button left the footer; what DS Bot puts there is
+// #452: the Connect plugins button left the footer; what Grow Bot puts there is
 // the account menu and the way back from Agent mode.
 test('the Bot footer holds the account and the return button only', () => {
   const source = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')

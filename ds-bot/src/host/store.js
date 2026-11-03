@@ -1,4 +1,5 @@
 // Store: the saved team (state.json), its migrations, the lock that keeps a second dsh
+
 // host on the same data from writing it, and the indexes that map a Session to the Bot
 // or group chat it belongs to.
 import { mkdirSync, statSync } from 'node:fs'
@@ -57,7 +58,7 @@ export function install(rt) {
     }
   }
   const readOnly = () => {
-    if (stuck !== undefined) return `The Bot team file ${statePath} could not be read (${stuck}). DS Bot does not change it; fix or move the file and reload.`
+    if (stuck !== undefined) return `The Bot team file ${statePath} could not be read (${stuck}). Grow Bot does not change it; fix or move the file and reload.`
     if (holder === undefined) return undefined
     const where = holder.pid ? `pid ${holder.pid}${holder.host ? ` on ${holder.host}` : ''}` : 'unknown process'
     return `The Bot team in ${home} is open in another dsh (Web or Desktop, ${where}). This window shows the team but cannot change it; close the other one and reload.`
@@ -97,7 +98,7 @@ export function install(rt) {
       stuck = undefined
       return parsed
     }
-    stuck = 'saved by a newer DS Bot; update DS Bot'
+    stuck = 'saved by a newer Grow Bot; update Grow Bot'
     return undefined
   }
 
@@ -144,17 +145,31 @@ export function install(rt) {
     }
     state.mainBotIds = state.mainBotIds.filter(id => state.bots[id])
     if (!Array.isArray(state.privateArchives)) state.privateArchives = []
-    // Teams from before the whale was stored at setup: their first Bot, while still a
-    // Main Bot, gets it once wherever it has no look of its own. After that the whale is
-    // an ordinary look the user can change, and it never passes to another Bot.
+    // Teams from before a look was stored at setup: their first Bot, while still a
+    // Main Bot, gets the orange circle once where it has no look of its own.
     if (state.whaleStored !== true) {
       const first = Object.values(state.bots).reduce((best, bot) => (best === undefined || (bot.createdAt ?? 0) < (best.createdAt ?? 0) ? bot : best), undefined)
       if (first !== undefined && state.mainBotIds.includes(first.id)) {
-        if (!first.avatar?.shape && !first.avatar?.image) first.avatar = { ...first.avatar, shape: 'whale' }
-        if (!first.color) first.color = 'deepseek'
+        if (!first.avatar?.shape && !first.avatar?.image) first.avatar = { ...first.avatar, shape: 'blob-circle' }
+        if (!first.color) first.color = 'orange'
       }
       state.whaleStored = true
       if (first !== undefined) migrated = true
+    }
+    // The picture characters are gone. A Main Bot takes the orange circle and any other Bot
+    // the look its id gives it; the color went with the picture, so it goes too.
+    for (const bot of Object.values(state.bots)) {
+      if (!/^grow-bot-\d+$/.test(String(bot.avatar?.shape ?? ''))) continue
+      const { shape, ...rest } = bot.avatar
+      if (state.mainBotIds.includes(bot.id)) {
+        bot.avatar = { ...rest, shape: 'blob-circle' }
+        bot.color = 'orange'
+      } else {
+        if (Object.keys(rest).length > 0) bot.avatar = rest
+        else delete bot.avatar
+        delete bot.color
+      }
+      migrated = true
     }
     if (Object.hasOwn(LEGACY_THEMES, state.prefs.theme ?? '')) {
       state.prefs.theme = LEGACY_THEMES[state.prefs.theme]

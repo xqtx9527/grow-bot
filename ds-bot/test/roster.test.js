@@ -286,9 +286,9 @@ test('a new team starts with a DeepSeek-blue whale as its Main Bot', async (t) =
   const team = (await call('state', {})).value
   assert.equal(team.mainBotIds.length, 1)
   const main = team.bots.find(bot => bot.id === team.mainBotId)
-  assert.equal(main.name, 'Chief')
-  assert.equal(main.color, 'deepseek')
-  assert.deepEqual(main.avatar, { shape: 'whale' })
+  assert.equal(main.name, 'Mochi')
+  assert.equal(main.color, 'orange')
+  assert.deepEqual(main.avatar, { shape: 'blob-circle' })
 
   // Other Bots keep no stored look, so the client picks one from the id.
   const writer = (await call('create-bot', { name: 'Writer', role: '写作' })).value
@@ -315,6 +315,24 @@ const OLD_TEAM = {
   questions: {},
 }
 
+test('Bots on a picture character go back to the colored ones, and other looks stay', async (t) => {
+  const bot = (id, look) => ({ id, sessionId: id, name: id, role: '', lab: 'deepseek', instructions: '', createdAt: 1, ...look })
+  const { call, stop } = start({
+    ...OLD_TEAM,
+    mainBotIds: ['m1'],
+    bots: {
+      m1: bot('m1', { color: '#e7b996', avatar: { shape: 'grow-bot-1' } }),
+      w2: bot('w2', { color: '#8baad6', avatar: { shape: 'grow-bot-2' } }),
+      w3: bot('w3', { color: 'blue', avatar: { shape: 'blob-star' } }),
+    },
+  })
+  t.after(stop)
+  const team = Object.fromEntries((await call('state', {})).value.bots.map(bot => [bot.id, bot]))
+  assert.deepEqual([team.m1.avatar, team.m1.color], [{ shape: 'blob-circle' }, 'orange'])
+  assert.deepEqual([team.w2.avatar, team.w2.color], [undefined, undefined])
+  assert.deepEqual([team.w3.avatar, team.w3.color], [{ shape: 'blob-star' }, 'blue'])
+})
+
 test('a team from before the whale was stored gets it once, on its first Main Bot only', async (t) => {
   const { call, stop, home } = start(OLD_TEAM)
   t.after(stop)
@@ -322,7 +340,7 @@ test('a team from before the whale was stored gets it once, on its first Main Bo
   let team = await bots()
   // A color the user picked stays; the missing shape becomes the whale.
   assert.equal(team.m1.color, 'red')
-  assert.deepEqual(team.m1.avatar, { shape: 'whale' })
+  assert.deepEqual(team.m1.avatar, { shape: 'blob-circle' })
   assert.equal(team.w2.avatar, undefined)
   assert.equal(JSON.parse(readFileSync(join(home, 'state.json'), 'utf8')).whaleStored, true)
 
@@ -343,7 +361,7 @@ test('another Bot takes the Main Bot place in one step', async (t) => {
   assert.deepEqual(team.mainBotIds, [writer.id])
   assert.equal(team.mainBotId, writer.id)
   // The whale stays with the Bot it was given to.
-  assert.deepEqual(team.bots.find(bot => bot.id === chief).avatar, { shape: 'whale' })
+  assert.deepEqual(team.bots.find(bot => bot.id === chief).avatar, { shape: 'blob-circle' })
   // The old Main Bot can now be deleted, and no new Chief is made in its place.
   assert.equal((await call('delete-bot', { id: chief })).ok, true)
   const after = (await call('state', {})).value
@@ -781,7 +799,7 @@ test('a non-Main Bot still cannot change another Bot\u2019s thinking level', asy
   const writer = (await call('create-bot', { name: 'Writer', model: 'deepseek/deepseek-v4-flash', effort: 'high' })).value
   await until(() => sent.some(entry => entry.sessionId === writer.id))
   const exec = { agent: { id: writer.id } }
-  assert.match(await ctx.registeredTools.get('update_bot').execute({ bot: 'Chief', effort: 'low' }, exec), /^Only a Main Bot can change another Bot/)
+  assert.match(await ctx.registeredTools.get('update_bot').execute({ bot: 'Mochi', effort: 'low' }, exec), /^Only a Main Bot can change another Bot/)
   // Its own level it may change.
   assert.equal(await ctx.registeredTools.get('update_bot').execute({ effort: 'low' }, exec), 'Updated Writer.')
   assert.equal((await call('state', {})).value.bots.find(bot => bot.id === writer.id).effort, 'low')
@@ -896,7 +914,7 @@ test('a photo that cannot be read changes nothing, and a non-Main Bot cannot set
   await until(() => sent.some(entry => entry.sessionId === writer.id))
   const mine = { agent: { id: writer.id } }
   // Another Bot's photo is a Main Bot's to change, as its other settings are.
-  assert.match(await ctx.registeredTools.get('update_bot').execute({ bot: 'Chief', avatar: PNG_DATA_URL }, mine), /^Only a Main Bot can change another Bot/)
+  assert.match(await ctx.registeredTools.get('update_bot').execute({ bot: 'Mochi', avatar: PNG_DATA_URL }, mine), /^Only a Main Bot can change another Bot/)
   assert.equal((await call('state', {})).value.bots.find(bot => bot.id === chief).avatar?.image, undefined)
   // Its own it may set; a later bad photo leaves the good one alone.
   assert.equal(await ctx.registeredTools.get('update_bot').execute({ avatar: PNG_DATA_URL }, mine), 'Updated Writer.')

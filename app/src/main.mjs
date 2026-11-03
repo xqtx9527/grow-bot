@@ -1,14 +1,14 @@
 // Electron main process: one window for the Bot team, served by the app's own DSH Host.
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
+import { netdiskLogin } from './netdisk-login.mjs'
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, session, shell as electronShell, Tray } from 'electron'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { homedir, release } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { getDshRuntimeVersion } from '@deepseek-ai/dsh-app-boot'
 import electronUpdater from 'electron-updater'
 import { BotBrowserGuests, partitionOf } from './bot-browser.mjs'
 import { BotViews, isBotId } from './bot-views.mjs'
@@ -20,9 +20,9 @@ import { canonicalExecPath } from './canonical-path.mjs'
 import { chooseLocations, localeText, preferredLanguage, programFolder, saveLocations, text } from './first-run.mjs'
 import { hostPort } from './host-port.mjs'
 import { HostProcess } from './host-process.mjs'
-import { copySessions, findTeam, importTeam, teamInUse, userDshHome } from './import.mjs'
+import { teamInUse, userDshHome } from './dsh-home.mjs'
 import { copyData, moveProblem } from './move-data.mjs'
-import { CHECK_PROFILE, PROFILE } from './profile.mjs'
+import { PROFILE } from './profile.mjs'
 import { createShell, SHELL_TEXT } from './shell.mjs'
 import { UPDATE_TEXT, watchReleases, watchUpdates } from './updates.mjs'
 import { createDeferredPrompt } from './update-prompt.mjs'
@@ -60,8 +60,12 @@ const iconFile = join(assets, process.platform === 'win32' ? 'icon.ico' : 'icon.
 const trayIconFile = () => join(assets, process.platform === 'win32' ? 'tray.ico' : process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png')
 // Windows 11 draws Mica behind the page; mica.css lets it through the sidebar.
 const mica = micaAvailable(process.platform, release())
+// The shell keeps cookies, logins and window state in its own folder.
+const shellData = join(homedir(), 'Library', 'Application Support', 'Grow Bot')
 if (process.env.DS_BOT_SHELL_DATA) app.setPath('userData', process.env.DS_BOT_SHELL_DATA)
-else if (process.platform === 'darwin' && existsSync(join(homedir(), 'Library', 'Application Support', 'Jarvis'))) app.setPath('userData', join(homedir(), 'Library', 'Application Support', 'Jarvis'))
+else if (process.platform === 'darwin' && app.isPackaged) {
+  if (existsSync(shellData)) app.setPath('userData', shellData)
+}
 
 let mainWindow
 let host
@@ -189,24 +193,8 @@ async function start() {
     pnpm,
     onFailure: fail,
   })
-  // A failed check is not a failed start: start() rejects, and the copy goes on unchecked.
-  const newCheck = (home, list) => {
-    const cwd = join(home, 'profiles', CHECK_PROFILE)
-    mkdirSync(cwd, { recursive: true })
-    return new HostProcess({ entry: join(here, 'host.mjs'), cwd, env: { ...process.env, DSH_HOME: home, DS_BOT_CHECK: list }, pnpm, onFailure: () => {} })
-  }
   const ready = (async () => {
-    let copied
-    if (where.import) {
-      copying = copyTeam(where, newHost, newCheck, copyAbort.signal)
-      copied = await copying
-      copying = undefined
-    }
-    if (copied === 'quit') app.exit(0)
-    // The window may be waiting for the Host; it goes away with the app.
-    if (copied !== undefined) return new Promise(() => {})
-    // Not during the import, which a restart would cut short; before the Host, so that an
-    // update can still come when this version's Host does not start.
+    // Before the Host, so that an update can still come when this version's Host does not start.
     updates = startUpdates()
     updates?.subscribe((state) => { mainWindow?.webContents.send(IPC.appUpdateChanged, state) })
     host = newHost()
@@ -226,6 +214,7 @@ async function start() {
   ready.catch(fail)
   // A throwaway run (DS_BOT_HOME) keeps its folders where it was told.
   const fixed = Boolean(process.env.DS_BOT_HOME)
+  ipcMain.handle('ds-bot:netdisk-login', event => { assertWindow(event); return netdiskLogin(mainWindow) })
   ipcMain.handle(IPC.dataLocation, (event) => {
     assertWindow(event)
     return { path: places.dataDir, fixed }
@@ -251,7 +240,7 @@ async function start() {
       mkdirSync(app.getPath('userData'), { recursive: true })
       writeFileSync(join(app.getPath('userData'), 'language.json'), `${JSON.stringify({ language: id })}\n`)
     } catch (error) {
-      console.error('Nomi: the language was not saved:', error instanceof Error ? error.message : String(error))
+      console.error('Grow Bot: the language was not saved:', error instanceof Error ? error.message : String(error))
     }
   })
   // ds-bot's Bot browsers: one webview per lease, in the storage of the Bot's key.
@@ -305,7 +294,7 @@ async function start() {
   ipcMain.handle(IPC.browserImportLive, async (event, sourceId, close) => {
     assertWindow(event)
     const source = (await listSources()).find((item) => item.id === sourceId)
-    if (!source) throw new Error('Nomi: an unknown browser profile')
+    if (!source) throw new Error('Grow Bot: an unknown browser profile')
     let outcome
     try {
       outcome = await importFromBrowser(source, { close: close === true })
@@ -322,9 +311,9 @@ async function start() {
   })
   ipcMain.handle(IPC.browserImportApply, async (event, key, id) => {
     assertWindow(event)
-    if (typeof key !== 'string' || !key.startsWith('bot:')) throw new Error('Nomi: a Bot storage key is required')
+    if (typeof key !== 'string' || !key.startsWith('bot:')) throw new Error('Grow Bot: a Bot storage key is required')
     const pending = cookieImports.take(typeof id === 'string' ? id : '')
-    if (!pending) throw new Error('Nomi: this import is no longer pending')
+    if (!pending) throw new Error('Grow Bot: this import is no longer pending')
     const storage = session.fromPartition(partitionOf(key))
     return applyCookies(storage, pending.cookies)
   })
@@ -396,79 +385,8 @@ async function start() {
 // without the copied Sessions' folders, so the old team's folders are not offered as projects.
 // Before that, the app's own DSH reads every chat of the team once: a newer DSH can write
 // records that this one refuses while the log format stays the same. Such a chat stops the
-// copy, as a newer log format does; 'quit' means the user updates Nomi first, and
+// copy, as a newer log format does; 'quit' means the user updates Grow Bot first, and
 // 'stopped' that the app quit during the copy.
-async function copyTeam(where, newHost, newCheck, signal) {
-  const unreadable = await checkTeam(where, newCheck, signal)
-  if (signal.aborted) return 'stopped'
-  if (unreadable > 0) {
-    const t = text()
-    const { response } = await dialog.showMessageBox({ type: 'warning', title: 'Nomi', noLink: true, message: t.newer(unreadable), buttons: [t.quit, t.startEmpty], defaultId: 0, cancelId: 0, signal })
-    if (signal.aborted) return 'stopped'
-    if (response === 0) return 'quit'
-    saveLocations(where)
-    return undefined
-  }
-  const warm = newHost()
-  host = warm
-  const stopWarm = () => { void warm.stop() }
-  signal.addEventListener('abort', stopWarm, { once: true })
-  try {
-    await warm.start()
-    if (signal.aborted) return 'stopped'
-    mainWindow?.setProgressBar(2)
-    await warm.stop()
-    host = undefined
-    const summary = await importTeam({ ...where.import, to: where.dataDir, workspace: where.workspace, dsh: getDshRuntimeVersion(), signal })
-    console.log(`Nomi: copied ${String(summary.bots)} Bots and ${String(summary.sessions)} Sessions from ${summary.from}`)
-  } catch (error) {
-    if (signal.aborted) return 'stopped'
-    console.error(error)
-    await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: text().failed(error instanceof Error ? error.message : String(error)), signal })
-    if (signal.aborted) return 'stopped'
-  } finally {
-    signal.removeEventListener('abort', stopWarm)
-    mainWindow?.setProgressBar(-1)
-  }
-  saveLocations(where)
-  return undefined
-}
-
-// A copy of the chats in a DSH home of its own, so that nothing of the check stays in the data.
-async function checkTeam(where, newCheck, signal) {
-  // A run that was killed can leave its temporary check home behind.
-  for (const name of readdirSync(where.dataDir).filter(entry => /^\.import-check-\d+$/u.test(entry))) {
-    await rm(join(where.dataDir, name), { recursive: true, force: true }).catch((error) => { console.error(error) })
-  }
-  const home = join(where.dataDir, `.import-check-${String(Date.now())}`)
-  try {
-    const found = findTeam(where.import.from)
-    const ids = found === undefined ? [] : await copySessions(where.import.from, found.team, home, signal)
-    if (ids.length === 0) return 0
-    mainWindow?.setProgressBar(2)
-    const list = join(home, 'check.json')
-    writeFileSync(list, JSON.stringify(ids))
-    const check = newCheck(home, list)
-    const stop = () => { void check.stop() }
-    signal.addEventListener('abort', stop, { once: true })
-    try {
-      signal.throwIfAborted()
-      const { unreadable } = await check.start()
-      if (unreadable.length > 0) console.warn(`Nomi: this DSH cannot read ${unreadable.join(', ')}`)
-      return unreadable.length
-    } finally {
-      signal.removeEventListener('abort', stop)
-      await check.stop()
-    }
-  } catch (error) {
-    if (!signal.aborted) console.error('Nomi: the chats were not checked before the copy:', error)
-    return 0
-  } finally {
-    mainWindow?.setProgressBar(-1)
-    await rm(home, { recursive: true, force: true, maxRetries: 5 }).catch((error) => { console.error(error) })
-  }
-}
-
 // The data moves as a copy while the Host is stopped, and the app starts again on the new
 // folder; after a failed copy it starts again on the old one. The old folder stays.
 async function moveData(workspace) {
@@ -484,13 +402,13 @@ async function moveData(workspace) {
     for (const current of new Set([workspace, places.workspace])) {
       const problem = moveProblem({ from: places.dataDir, to, workspace: current, dshHome, program: app.isPackaged ? programFolder() : undefined })
       if (problem === undefined) continue
-      await dialog.showMessageBox(owner, { type: 'warning', title: 'Nomi', message: problem === 'dsh' ? t.inDsh(dshHome) : t[MOVE_PROBLEMS[problem]], buttons: ['OK'] })
+      await dialog.showMessageBox(owner, { type: 'warning', title: 'Grow Bot', message: problem === 'dsh' ? t.inDsh(dshHome) : t[MOVE_PROBLEMS[problem]], buttons: ['OK'] })
       return true
     }
     return false
   }
   if (await refused()) return false
-  const { response } = await dialog.showMessageBox(owner, { type: 'question', title: 'Nomi', noLink: true, message: t.moveConfirm(to), detail: t.moveDetail(places.dataDir), buttons: [t.move, t.cancel], defaultId: 0, cancelId: 1 })
+  const { response } = await dialog.showMessageBox(owner, { type: 'question', title: 'Grow Bot', noLink: true, message: t.moveConfirm(to), detail: t.moveDetail(places.dataDir), buttons: [t.move, t.cancel], defaultId: 0, cancelId: 1 })
   if (response !== 0 || stopping || await refused()) return false
   const signal = copyAbort.signal
   copying = (async () => {
@@ -504,7 +422,7 @@ async function moveData(workspace) {
     }
     // Another DSH on the same data would go on writing while the copy is made.
     if (teamInUse(places.dataDir)) {
-      await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: t.moveInUse })
+      await dialog.showMessageBox({ type: 'warning', title: 'Grow Bot', message: t.moveInUse })
       app.relaunch()
       return
     }
@@ -521,7 +439,7 @@ async function moveData(workspace) {
     } catch (error) {
       if (signal.aborted) return
       console.error(error)
-      await dialog.showMessageBox({ type: 'warning', title: 'Nomi', message: t.moveFailed(error instanceof Error ? error.message : String(error)) })
+      await dialog.showMessageBox({ type: 'warning', title: 'Grow Bot', message: t.moveFailed(error instanceof Error ? error.message : String(error)) })
     } finally {
       mainWindow?.setProgressBar(-1)
     }
@@ -536,11 +454,22 @@ async function moveData(workspace) {
 const notePage = message => `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><meta name="color-scheme" content="light dark">
 <body style="margin:0;height:100vh;display:grid;place-items:center;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText">${message.replace(/[&<>]/gu, char => `&#${String(char.charCodeAt(0))};`)}</body>`)}`
 
+const startupPage = () => {
+  const icon = readFileSync(iconFile).toString('base64')
+  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><meta name="color-scheme" content="light dark"><style>
+  body{margin:0;height:100vh;display:grid;place-items:center;background:#faf8f6;color:#222;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  .s{text-align:center}.icon{width:112px;height:112px;border-radius:26px;animation:breathe 2.4s ease-in-out infinite;box-shadow:0 12px 32px #bd80612b}
+  h1{font-size:22px;letter-spacing:.02em;margin:22px 0 7px}p{margin:0;font-size:13px;color:#999}
+  @keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  @media(prefers-reduced-motion:reduce){.icon{animation:none}}@media(prefers-color-scheme:dark){body{background:#171615;color:#f5f4f2}p{color:#999}}
+  </style><div class="s"><img class="icon" src="data:image/png;base64,${icon}" alt=""><h1>Grow Bot</h1><p>${text().starting}</p></div>` )}`
+}
+
 // Windows and a Linux AppImage update themselves; macOS and a Linux deb ask to download the new
 // version. Throwaway runs check only a given feed and never ask.
 function startUpdates() {
-  // Personal build (Nomi): the update feed belongs to the upstream project, so never check.
-  if (!process.env.JARVIS_ALLOW_UPSTREAM_UPDATES) return undefined
+  // Personal build (Grow Bot): the update feed belongs to the upstream project, so never check.
+  if (!process.env.GROW_BOT_ALLOW_UPSTREAM_UPDATES) return undefined
   const feed = process.env.DS_BOT_UPDATE_URL || undefined
   const throwaway = Boolean(process.env.DS_BOT_HOME)
   if (!app.isPackaged || (throwaway && feed === undefined)) return undefined
@@ -580,7 +509,7 @@ async function askRestartNow(version) {
   // After a failed start, fail() installs the update itself.
   if (failed) return false
   const t = localeText(UPDATE_TEXT)
-  const options = { type: 'info', title: 'Nomi', message: t.ready(version), detail: t.readyDetail, buttons: [t.restart, t.later], defaultId: 0, cancelId: 1, noLink: true }
+  const options = { type: 'info', title: 'Grow Bot', message: t.ready(version), detail: t.readyDetail, buttons: [t.restart, t.later], defaultId: 0, cancelId: 1, noLink: true }
   const { response } = await (mainWindow ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options))
   return response === 0
 }
@@ -588,7 +517,7 @@ async function askRestartNow(version) {
 async function askDownloadNow(version) {
   if (failed) return false
   const t = localeText(UPDATE_TEXT)
-  const options = { type: 'info', title: 'Nomi', message: t.available(version), detail: t.availableDetail, buttons: [t.download, t.later], defaultId: 0, cancelId: 1, noLink: true }
+  const options = { type: 'info', title: 'Grow Bot', message: t.available(version), detail: t.availableDetail, buttons: [t.download, t.later], defaultId: 0, cancelId: 1, noLink: true }
   const { response } = await (mainWindow ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options))
   return response === 0
 }
@@ -619,7 +548,7 @@ function createWindow() {
     // The window never squeezes the chat: RAIL_WIDTH + MIN_CHAT from ds-bot's
     // src/client/frame-layout.js is the avatar rail plus the smallest chat column.
     width: 1320, height: 860, minWidth: 508, minHeight: 480,
-    title: process.platform === 'darwin' ? ' ' : 'Nomi', show: false, icon: iconFile,
+    title: process.platform === 'darwin' ? '' : 'Grow Bot', show: false, icon: iconFile,
     backgroundColor: mica ? '#00000000' : dark ? '#1b1b1c' : '#ffffff',
     // Frameless as in DSH Desktop: the caption buttons overlay the page's band. They keep the
     // sidebar's colors until the page sends the colors of the surface under them.
@@ -627,6 +556,9 @@ function createWindow() {
       titleBarStyle: 'hidden',
       titleBarOverlay: { height: CAPTION_HEIGHT, color: dark ? '#1b1b1c' : '#f9fafb', symbolColor: dark ? '#f9fafb' : '#0f1115' },
       ...(mica ? { backgroundMaterial: 'mica' } : {}),
+    } : process.platform === 'darwin' ? {
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 14, y: 20 },
     } : {}),
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, sandbox: true, webviewTag: true,
@@ -701,7 +633,7 @@ function createWindow() {
   // minimized asks for it when it comes back.
   win.on('show', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
   win.on('restore', () => { void flushDeferredUpdate().catch((error) => { console.error(error) }) })
-  void win.loadURL(notePage(text().starting)).catch(() => {})
+  void win.loadURL(startupPage()).catch(() => {})
   return win
 }
 
@@ -769,19 +701,17 @@ function trayImage() {
 function setMenu() {
   if (process.platform !== 'darwin') { Menu.setApplicationMenu(null); return }
   const t = localeText(SHELL_TEXT)
-  // The application menu of macOS, without its Quit: the tray's Quit is the one ordinary way
-  // out. Only when the tray is not there does the menu carry one, so that the app can still
-  // be ended.
+  // The application menu of macOS, with the ordinary Quit and its Cmd+Q shortcut. It goes
+  // through the shell's quit, so the Host is stopped on the way out (the tray has one too).
   const items = [
     { role: 'about' },
     { type: 'separator' },
     { role: 'services' },
     { type: 'separator' },
     { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+    { type: 'separator' },
+    { label: t.quit, accelerator: 'CmdOrCtrl+Q', click: () => { shell.quit() } },
   ]
-  if (!shell.hasTray()) {
-    items.push({ type: 'separator' }, { label: t.quit, click: () => { shell.quit() } })
-  }
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: app.name, submenu: items },
     { role: 'fileMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },
@@ -791,7 +721,7 @@ function setMenu() {
 function assertWindow(event) {
   const contents = mainWindow?.webContents
   if (contents === undefined || event.sender !== contents || event.senderFrame !== contents.mainFrame
-    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('Nomi: rejected IPC from an unknown page')
+    || !event.senderFrame.url.startsWith(`${origin}/`)) throw new Error('Grow Bot: rejected IPC from an unknown page')
 }
 
 function fromWindow(event) {
@@ -811,7 +741,7 @@ async function fail(error) {
   const throwaway = Boolean(process.env.DS_BOT_HOME)
   const t = localeText(UPDATE_TEXT)
   const next = found ? `\n\n${found.page ? t.onFailurePage(found.version) : t.onFailure(found.version)}` : ''
-  dialog.showErrorBox('Nomi', `${text().notStarted}\n\n${error instanceof Error ? error.message : String(error)}${next}`)
+  dialog.showErrorBox('Grow Bot', `${text().notStarted}\n\n${error instanceof Error ? error.message : String(error)}${next}`)
   if (found?.page) {
     if (!throwaway) await electronShell.openExternal(found.page)
     app.quit()

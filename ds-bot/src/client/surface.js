@@ -86,7 +86,7 @@ export function freePriority(entries, { priority, key, id }) {
 }
 
 export function readMode(storage = globalThis.localStorage) {
-  // Jarvis is a Bot app: the classic Agent surface is gone, and a stored 'agent' is ignored.
+  // Grow Bot is a Bot app: the classic Agent surface is gone, and a stored 'agent' is ignored.
   void storage
   return 'bot'
 }

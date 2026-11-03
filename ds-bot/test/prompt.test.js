@@ -37,6 +37,28 @@ test('Bots get a scoped progress rule without changing the private/group prompt 
   assert.equal(prompt('group-worker'), prompt('worker'))
 })
 
+test('Bots are told to keep the chat free while a long command runs as a background job', (t) => {
+  const { ctx, prompt } = start()
+  t.after(() => ctx.dispose())
+  const rule = '- A command or task that takes minutes must not hold the chat: run it as a background job with bash and run_in_background, answer the user while it runs, and collect the result with job_output when you need it (job_list shows what still runs, job_kill stops one). A background job keeps running after the response that started it.'
+  for (const id of ['main', 'worker']) {
+    assert.ok(prompt(id).split('\n').includes(rule))
+    assert.equal(prompt(id).split(rule).length - 1, 1)
+  }
+  assert.doesNotMatch(prompt('room'), /run_in_background/)
+})
+
+test('Bots are told to hand self-contained multi-step work to a subagent', (t) => {
+  const { ctx, prompt } = start()
+  t.after(() => ctx.dispose())
+  const rule = '- For a piece of work that is self-contained and takes many steps, start a subagent with subagent (or subagent_fork when it needs this conversation\'s context) and keep your own chat free: the runtime tells you when it finishes and the child reports back with a message. Do not wait or poll for it; reply to the user meanwhile and handle its report when it arrives. A subagent shares your working folder, not your memory.'
+  for (const id of ['main', 'worker']) {
+    assert.ok(prompt(id).split('\n').includes(rule))
+    assert.equal(prompt(id).split(rule).length - 1, 1)
+  }
+  assert.doesNotMatch(prompt('room'), /subagent_fork/)
+})
+
 test('the group relay and non-Bot sessions do not get progress instructions', (t) => {
   const { ctx, prompt } = start()
   t.after(() => ctx.dispose())

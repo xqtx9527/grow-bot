@@ -3,6 +3,24 @@ import { createElement as h } from 'react'
 export function PlusIcon() {
   return h('svg', { width: 18, height: 18, viewBox: '0 0 20 20', 'aria-hidden': true }, h('path', { d: 'M10 3.5v13M3.5 10h13', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' }))
 }
+// Grow Bot's logo without its tile: a Bot that is a leaf, with the Bots' two eyes.
+export function GrowBotLogo({ size = 24 }) {
+  return h('svg', { width: size, height: size, viewBox: '232 262 560 560', 'aria-hidden': true },
+    h('path', { d: 'M512 806C366 806 248 688 248 542C248 396 366 278 512 278H776V542C776 688 658 806 512 806Z', fill: 'var(--bt-green)' }),
+    h('rect', { x: 446, y: 470, width: 46, height: 112, rx: 23, fill: 'var(--bt-sidebar)', transform: 'rotate(-16 469 526)' }),
+    h('rect', { x: 556, y: 470, width: 46, height: 112, rx: 23, fill: 'var(--bt-sidebar)', transform: 'rotate(-16 579 526)' }))
+}
+export function ConnectorsIcon() {
+  return h('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', 'aria-hidden': true },
+    h('rect', { x: 3, y: 3, width: 5.5, height: 5.5, rx: 1.2 }),
+    h('rect', { x: 11.5, y: 3, width: 5.5, height: 5.5, rx: 1.2 }),
+    h('rect', { x: 3, y: 11.5, width: 5.5, height: 5.5, rx: 1.2 }),
+    h('path', { d: 'M14.25 11.5v5.5M11.5 14.25H17' }))
+}
+export function BrainIcon() {
+  return h('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+    h('path', { d: 'M5 3.5h8.5L16 6v10.5H5z' }), h('path', { d: 'M8 8h5M8 11h5M8 14h3' }))
+}
 export function SearchIcon() {
   return h('svg', { width: 16, height: 16, viewBox: '0 0 20 20', 'aria-hidden': true }, h('circle', { cx: 8.5, cy: 8.5, r: 5.5, stroke: 'currentColor', strokeWidth: 1.6, fill: 'none' }), h('path', { d: 'M13 13l4 4', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' }))
 }
@@ -65,7 +83,6 @@ export const GaugeIcon = lineIcon(['M3.5 13.5a6.5 6.5 0 1 1 13 0', 'M10 13.5l3-4
 export const PlugIcon = lineIcon(['M7 3v4M13 3v4', 'M5 7h10v2.5a5 5 0 0 1-10 0z', 'M10 14.5V17'])
 export const CalendarIcon = lineIcon(['M5.5 5h9A1.5 1.5 0 0 1 16 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5v-8A1.5 1.5 0 0 1 5.5 5z', 'M4 8.75h12', 'M7.25 3.5v3M12.75 3.5v3'])
 export const ConnectorIcon = lineIcon(['M7 10a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M18 10a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M7 10h6'])
-export const SwitchIcon = lineIcon(['M4 7h9.5M10.5 3.5L14 7l-3.5 3.5', 'M16 13H6.5M9.5 9.5L6 13l3.5 3.5'])
 export const SignOutIcon = lineIcon(['M8.5 17H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5', 'M10 10h6.5', 'M13.5 7l3 3-3 3'])
 export const PaperclipIcon = lineIcon(['M15.5 9.5l-5.6 5.6a3.4 3.4 0 0 1-4.8-4.8l6.1-6.1a2.25 2.25 0 0 1 3.2 3.2l-6 6a1.1 1.1 0 0 1-1.6-1.6l5.5-5.5'])
 export const ClockIcon = lineIcon(['M10 3.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z', 'M10 6.5V10l2.5 1.5'])

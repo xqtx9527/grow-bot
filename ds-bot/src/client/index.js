@@ -1,12 +1,12 @@
 import { call } from './api.js'
-import { isHex, inkText, paintCss } from './inks.js'
-import { DEFAULT_MASK, SHAPES, markupCache, maskOf } from './characters.js'
+import { INKS, isHex, inkText, paintCss } from './inks.js'
+import { DEFAULT_MASK, SHAPES, colorOf, maskOf } from './characters.js'
 import { createSource, EMPTY_ROSTER, indexRoster, isAgentSession } from './sources.js'
 import { teamActions } from './team-actions.js'
 import { themeCss, shellTokens, registry, registerShape, registerTheme, allThemes, layoutOf, widthOf, flatWidthOf } from './themes.js'
 import { MENTION_ORIGIN, currentPart } from './text.js'
 import { SHELL_CSS, CONVERSATION_CSS, installStyles, installCompiledStyles } from './styles.js'
-import { JARVIS_CSS } from './jarvis-css.js'
+import { GROW_BOT_CSS } from './grow-bot-css.js'
 import { lookOf } from './mark.js'
 import { TeamSidebar, YouAvatar, AccountLauncher, FooterAccount, BrandMark, BrandName, BotReturn, SIDEBAR_CSS, RETURN_CSS, holdShellShortcuts, openHarnessOnboarding, openHarnessSettings } from './sidebar.js'
 import { frameLayout, readSidebar, writeSidebar, toggledPref, DSH_NARROW } from './frame-layout.js'
@@ -26,6 +26,9 @@ import { AssistantCell, TriggerCell, TurnProcessCell, Nothing, TurnTailCell, Too
 import { Overlays } from './overlays.js'
 import { createBotBrowsers, serveBrowserReads } from './bot-browsers.js'
 import { BROWSER_CSS } from './browser-pane.js'
+import { PROVIDERS_CSS } from './providers-page.js'
+import { MAGPIE_CSS } from './magpie-card.js'
+import { LIBRARY_CSS } from './library-page.js'
 import { SECRET_CSS, SecretDock } from './secret-card.js'
 import { LearningDock, LearningTurnTail, LEARNING_CSS } from './learning-card.js'
 import { MODEL_CSS, ModelChoiceDock, DeepSeekSignIn } from './model-menu.js'
@@ -38,7 +41,7 @@ import { SCHEDULE_CSS } from './schedules.js'
 import { STORAGE, migrateStorage } from './storage.js'
 import { noteLeft, setUnread, sharedMap, toggleReaction } from './shared-map.js'
 import { freePriority, groupsFor, readMode, surfaceGroups, writeMode } from './surface.js'
-import { installLocale, language, t } from './i18n.js'
+import { installLocale, language, setLocale, t } from './i18n.js'
 import { noteClientError, quietly } from './diagnostics.js'
 import { RIGHTBAR_ATTRIBUTES, columnOpened, createSwitchWindow, drawerOpened, rightColumnOpen } from './right-panel.js'
 import { ErrorToast, FEEDBACK_CSS } from './feedback.js'
@@ -52,6 +55,10 @@ export const inject = ['sessions', 'uiWorkspace', 'uiConversation', 'slots', 'th
 
 export function apply(ctx) {
   ctx.effect(() => installLocale(ctx.get('locale')), 'ds-bot: interface copy')
+  // The app's own language (Chinese unless Settings says otherwise) starts the interface.
+  void Promise.resolve(globalThis.dsBotApp?.language?.())
+    .then(id => { if (typeof id === 'string' && id !== '') setLocale(id) })
+    .catch(() => {})
   const roster = createSource(EMPTY_ROSTER)
   migrateStorage()
   const unreadStore = sharedMap(STORAGE.unread)
@@ -282,7 +289,6 @@ export function apply(ctx) {
     }, 'ds-bot: Bot browsers')
   }
 
-  ctx.effect(() => () => { markupCache.clear() }, 'ds-bot: character markup')
 
   // Mentions wear each Bot's color and character silhouette (or its photo). A message
   // DSH still draws itself, while it waits to be sent or to join a running turn, shows
@@ -322,7 +328,15 @@ export function apply(ctx) {
       const prefs = snapshot.ready ? snapshot.prefs ?? {} : savedPrefs
       const themes = allThemes()
       const id = themes[prefs.theme] ? prefs.theme : 'deepseek'
-      const accent = isHex(prefs.accent) ? prefs.accent : undefined
+      const sessions = ctx.sessions.list.getSnapshot()
+      const active = Object.values(sessions.byId ?? {}).find(session => (session?.retainedBy?.mainView ?? 0) > 0)?.id
+      const bot = prefs.accent === 'bot' && !snapshot.roomsById?.[active]
+        ? snapshot.byId?.[active] ?? snapshot.bots?.find(item => currentPart(item) === active)
+        : undefined
+      const color = bot ? colorOf(bot) : undefined
+      const accent = color ? (isHex(color) ? color : INKS[color]?.[0]) : isHex(prefs.accent) ? prefs.accent : undefined
+      if (bot && accent) document.body.dataset.btBotAccent = ''
+      else delete document.body.dataset.btBotAccent
       const motion = prefs.motion === 'quiet' || prefs.motion === 'lively' ? prefs.motion : 'normal'
       const layout = layoutOf(prefs)
       const width = widthOf(prefs)
@@ -345,14 +359,17 @@ export function apply(ctx) {
     render()
     const offRoster = roster.subscribe(render)
     const offRegistry = registry.subscribe(render)
+    const offSessions = ctx.sessions.list.subscribe(render)
     return () => {
       offRoster()
       offRegistry()
+      offSessions()
       try {
         if (typeof releaseTokens === 'function') releaseTokens()
       } finally {
         delete document.body.dataset.btMotion
         delete document.body.dataset.btLayout
+        delete document.body.dataset.btBotAccent
         document.body.style.removeProperty('--bt-msg-w')
         document.body.style.removeProperty('--bt-flat-w')
         style.remove()
@@ -625,6 +642,20 @@ export function apply(ctx) {
   }
   // Whether AccountLauncher holds the shell's settings seat; FooterAccount steps aside if so.
   actions.signInEntry = () => ctx.slots.entries?.('settings.models.sign-in')?.[0] ?? null
+  actions.providers = () => call('providers')
+  // The model picker's "Models and providers…" opens the app's own Models page,
+  // not DSH's settings.
+  actions.openModels = () => actions.openSettings('models')
+  actions.addProvider = body => after(call('provider-add', body))
+  actions.setProviderKey = (provider, value) => after(call('provider-key', { provider, value }))
+  actions.removeProvider = provider => after(call('provider-remove', { provider }))
+  actions.defaultModels = () => call('default-models')
+  actions.magpieStatus = () => call('magpie-status')
+  actions.magpieConfigure = endpoint => after(call('magpie-configure', { endpoint }))
+  actions.magpieRefresh = () => after(call('magpie-refresh'))
+  actions.magpieDisconnect = () => after(call('magpie-disconnect'))
+  actions.magpieOpen = () => call('magpie-open')
+  actions.setDefaultModel = body => after(call('default-model-set', body))
   actions.settingsSlots = ctx.slots
   actions.settingsLocale = name => ctx.get('locale').bind(name)
   actions.canSignIn = () => Boolean(actions.signInEntry())
@@ -859,8 +890,8 @@ export function apply(ctx) {
   const installShell = () => [
     () => installCompiledStyles(SHELL_CSS, 'shell'),
     () => installCompiledStyles(SIDEBAR_CSS, 'sidebar'),
-    () => installCompiledStyles(JARVIS_CSS, 'jarvis'),
-    () => installCompiledStyles(SECRET_CSS, 'secrets'),
+    () => installCompiledStyles(GROW_BOT_CSS, 'grow-bot'),
+    () => installCompiledStyles(SECRET_CSS + PROVIDERS_CSS + MAGPIE_CSS + LIBRARY_CSS, 'secrets'),
     () => installCompiledStyles(LEARNING_CSS, 'learning'),
     () => installCompiledStyles(MODEL_CSS + FOLDER_CSS + BOT_SETTINGS_CSS + GROUP_SETTINGS_CSS + AVATAR_LIBRARY_CSS, 'models'),
     () => installCompiledStyles(USAGE_CSS, 'usage'),

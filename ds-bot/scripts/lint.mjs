@@ -20,6 +20,13 @@ if (!bin) {
   console.error('lint: no oxlint found; run npm run harness, or set DSH_HARNESS to a deepseek-harness checkout')
   process.exit(2)
 }
-const result = spawnSync(process.execPath, [bin, '-c', '.oxlintrc.json', ...process.argv.slice(2), 'index.js', 'web-search.js', 'src', 'dev', 'scripts', 'test'], { cwd: plugin, stdio: 'inherit' })
-if (result.error) console.error(`lint: ${result.error.message}`)
-process.exit(result.status ?? 1)
+// oxlint takes no path with `..`, so the desktop app runs from its own folder.
+const config = join(plugin, '.oxlintrc.json')
+const lint = (cwd, paths) => {
+  const result = spawnSync(process.execPath, [bin, '-c', config, ...process.argv.slice(2), ...paths], { cwd, stdio: 'inherit' })
+  if (result.error) console.error(`lint: ${result.error.message}`)
+  return result.status ?? 1
+}
+const plain = lint(plugin, ['index.js', 'web-search.js', 'src', 'dev', 'scripts', 'test'])
+const desktop = lint(resolve(plugin, '..', 'app'), ['src', 'test', 'scripts'])
+process.exit(plain || desktop)

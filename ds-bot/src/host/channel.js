@@ -1,4 +1,5 @@
 // Client channel: the team view the browser renders, and the POST /api/bot endpoints.
+import { importSkill } from './skill-import.js'
 import { randomUUID } from 'node:crypto'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { install as installBtw } from './btw.js'
@@ -12,7 +13,7 @@ const LANGUAGES = { zh: 'Chinese (简体中文)', en: 'English' }
 const RUN_STATS = ['sessionStats', 'tokenUsage', 'contextPressure']
 
 const invalid = message => Object.assign(new Error(message), { code: 'bot/invalid' })
-// Programming and file system errors are DS Bot's own faults, logged with their stack;
+// Programming and file system errors are Grow Bot's own faults, logged with their stack;
 // any other error is a refusal whose message is meant for the user.
 const isInternal = error => error instanceof TypeError || error instanceof ReferenceError || error instanceof RangeError
   || error instanceof SyntaxError || (typeof error?.code === 'string' && /^E[A-Z_]+$/.test(error.code))
@@ -99,7 +100,7 @@ export function install(rt) {
   })
   // What a host that only reads the team may still answer.
   // Updates change the dsh profile, not the team, so a reading host may run them too.
-  const READS = new Set(['state', 'models', 'efforts', 'providers', 'provider-models', 'earlier', 'chat', 'run-stats', 'room-progress', 'exchange', 'exchange-text', 'file-text', 'usage', 'schedules', 'memory-view', 'browser-wait', 'browser-result', 'diagnostics', 'diagnostics-log', 'diagnostics-clear', 'update-check', 'update-install', 'dsh-update-install', 'repo-stars', 'approval-answer', 'thinking', 'avatar-library'])
+  const READS = new Set(['state', 'models', 'efforts', 'providers', 'provider-models', 'account-status', 'default-models', 'magpie-status', 'earlier', 'chat', 'run-stats', 'room-progress', 'exchange', 'exchange-text', 'file-text', 'usage', 'schedules', 'memory-view', 'browser-wait', 'browser-result', 'diagnostics', 'diagnostics-log', 'diagnostics-clear', 'update-check', 'update-install', 'dsh-update-install', 'repo-stars', 'approval-answer', 'thinking', 'avatar-library'])
 
   function setPrefs(body) {
     if (body.theme !== undefined) {
@@ -108,7 +109,7 @@ export function install(rt) {
     }
     if (body.accent !== undefined) {
       if (body.accent === null || body.accent === '') delete state.prefs.accent
-      else if (/^#[0-9a-f]{6}$/i.test(body.accent)) state.prefs.accent = body.accent
+      else if (body.accent === 'bot' || /^#[0-9a-f]{6}$/i.test(body.accent)) state.prefs.accent = body.accent
       else throw invalid('Accent must be a #rrggbb color')
     }
     if (body.motion !== undefined) {
@@ -169,9 +170,38 @@ export function install(rt) {
           const ms = await rt.thinkingOf(sessionId, turn)
           return ok(ms === undefined ? {} : { ms })
         }
+        // Magpie, the local model gateway. Status is a read; the rest write the one route
+        // this plugin owns.
+        case 'magpie-status':
+          return ok(await rt.magpieStatus())
+        case 'magpie-configure':
+          return ok(await rt.magpieConfigure(body))
+        case 'magpie-refresh':
+          return ok(await rt.magpieRefresh())
+        case 'magpie-disconnect':
+          return ok(await rt.magpieDisconnect())
+        case 'magpie-open':
+          return ok(await rt.magpieOpen())
         // Model providers and their keys, for a window without DSH's own Models page.
         case 'providers':
           return ok(await rt.providersView())
+        case 'default-models':
+          return ok(await rt.defaultModelsView())
+        case 'default-model-set':
+          return ok(await rt.setDefaultModel(body))
+        case 'account-status':
+          return ok(await rt.accountStatus(body.provider))
+        case 'account-start':
+          return ok(await rt.accountStart(body.provider))
+        case 'account-answer':
+          rt.accountAnswer(body.value, body.provider)
+          return ok(await rt.accountStatus(body.provider))
+        case 'account-cancel':
+          rt.accountCancel(body.provider)
+          return ok(await rt.accountStatus(body.provider))
+        case 'account-sign-out':
+          await rt.accountSignOut(body.provider)
+          return ok(await rt.accountStatus(body.provider))
         case 'provider-key':
           if (body.value === null) await rt.clearProviderKey(String(body.provider ?? ''))
           else await rt.setProviderKey(String(body.provider ?? ''), body.value)
@@ -355,8 +385,17 @@ export function install(rt) {
         case 'connector-connect':
         case 'connector-disconnect':
         case 'connector-retry':
+        case 'connector-authorize':
+        case 'connector-wait':
+        case 'connector-cancel':
+        case 'connector-inspect':
+        case 'connector-add':
+        case 'connector-token':
+        case 'connector-open':
           await rt.load()
           return ok(await rt.connectorEndpoint(endpoint, body))
+        case 'skill-import':
+          return ok(await importSkill(body.url, { fetch: rt.config.skillFetch ?? fetch }))
         case 'capability-save':
         case 'capability-delete':
         case 'capability-approve':

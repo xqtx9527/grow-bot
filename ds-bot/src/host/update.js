@@ -230,7 +230,7 @@ export function install(rt) {
   /** Start reinstalling the newest version; the answer comes back through `check`. */
   function start() {
     if (status.phase === 'installing') return view()
-    if (target === null) throw new Error('No DS Bot update is available')
+    if (target === null) throw new Error('No Grow Bot update is available')
     const service = manager()
     if (typeof service?.installBundle !== 'function') throw new Error('The DSH plugin manager is not available in this profile')
     const chosen = target
@@ -267,7 +267,7 @@ export function install(rt) {
           unmark()
           return { error: removed.error }
         }
-        // The bundle is gone now; a failed install leaves no DS Bot unless the old one goes back.
+        // The bundle is gone now; a failed install leaves no Grow Bot unless the old one goes back.
         const restore = async (failed) => {
           if (typeof previous !== 'string' || previous === '') return failed
           const back = await Promise.resolve(service.installBundle(previous, sourceOf(previous).kind === 'registry' && chosen.registry ? { registry: chosen.registry } : {})).catch(error => ({ error: { code: error?.message ?? 'restore failed' } }))

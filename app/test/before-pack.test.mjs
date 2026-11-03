@@ -37,7 +37,7 @@ test('a requested universal build stops before packing either architecture', asy
 
 test('this personal build includes the Office payload hook', () => {
   const config = readFileSync(new URL('../electron-builder.yml', import.meta.url), 'utf8')
-  assert.match(config, /^productName: Nomi$/m)
+  assert.match(config, /^productName: Grow Bot$/m)
   assert.match(config, /^beforePack: .\/scripts\/before-pack\.mjs$/m)
 })
 

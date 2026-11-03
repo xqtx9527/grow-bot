@@ -88,6 +88,10 @@ export function install(rt) {
       const info = await seams().credentials.describe(refs.get(id)).catch(() => undefined)
       if (info?.configured === false) missing.add(id)
     }))
+    if (providers.includes('openai-codex') && seams()?.credentials.describeRecord) {
+      const account = await seams().credentials.describeRecord('llm-pi-ai/openai-codex').catch(() => undefined)
+      if (!account?.configured) missing.add('openai-codex')
+    }
     return missing
   }
 
@@ -129,19 +133,39 @@ export function install(rt) {
   async function writableRef(provider) {
     const ref = keyRefs().get(provider)
     if (ref === undefined) throw invalid(`${provider} takes no API key here`)
-    if ((await usable().credentials.describe(ref)).writable === false) throw invalid(`The API key for ${provider} is set outside DS Bot and cannot be changed here`)
+    if ((await usable().credentials.describe(ref)).writable === false) throw invalid(`The API key for ${provider} is set outside Grow Bot and cannot be changed here`)
     return ref
   }
 
   // A key is only ever written; nothing here reads one back.
   async function setProviderKey(provider, value) {
     const key = checkKey(value)
-    await usable().credentials.set(await writableRef(provider), key)
+    const { credentials, settings } = usable()
+    let ref = keyRefs().get(provider)
+    if (ref === undefined) {
+      const entry = entryOf(provider)
+      const map = sections(settings)
+      if (!entry || entry.settingsNs !== PI_AI || profileOf(entry, map) === undefined || entry.declared) throw invalid(`${provider} takes no API key here`)
+      ref = keyRefFor(provider)
+      if ((await credentials.describe(ref)).writable === false) throw invalid(`The API key for ${provider} is set outside Grow Bot and cannot be changed here`)
+      await settings.mutate(PI_AI, [{ op: 'set', path: [...entry.settingsPath, 'apiKeyEnv'], value: ref }], map.get(PI_AI)?.revision)
+    } else {
+      await writableRef(provider)
+    }
+    await credentials.set(ref, key)
     rt.dropCatalog()
   }
 
   async function clearProviderKey(provider) {
-    await usable().credentials.unset(await writableRef(provider))
+    const { credentials, settings } = usable()
+    const ref = await writableRef(provider)
+    await credentials.unset(ref)
+    const entry = entryOf(provider)
+    const map = sections(settings)
+    const info = ['anthropic', 'xai'].includes(provider) && credentials.describeRecord ? await credentials.describeRecord(`llm-pi-ai/${provider}`) : undefined
+    if (info?.configured && info.kind === 'grant' && entry?.settingsNs === PI_AI && ref === keyRefFor(provider) && !refOf(profileOf(entry, map, 'base'))) {
+      await settings.mutate(PI_AI, [{ op: 'unset', path: [...entry.settingsPath, 'apiKeyEnv'] }], map.get(PI_AI)?.revision)
+    }
     rt.dropCatalog()
   }
 
@@ -161,7 +185,7 @@ export function install(rt) {
     const key = typeof body.key === 'string' && body.key.trim() !== '' ? checkKey(body.key) : undefined
     const ref = keyRefFor(provider)
     const info = await credentials.describe(ref)
-    if (key !== undefined && info.writable === false) throw invalid(`The API key for ${provider} is set outside DS Bot and cannot be changed here`)
+    if (key !== undefined && info.writable === false) throw invalid(`The API key for ${provider} is set outside Grow Bot and cannot be changed here`)
     // A blank key keeps a key that is already there, else the provider's own sign-in.
     const keyed = key !== undefined || info.configured === true
     const profile = custom ? customProfile(body) : {}
@@ -222,5 +246,106 @@ export function install(rt) {
     return providersView()
   }
 
-  Object.assign(rt, { keyRefs, missingKeys, providersView, setProviderKey, clearProviderKey, addProvider, discoverModels, removeProvider })
+  async function defaultModelsView() {
+    const service = ctx.get?.('agentDefaultModel')
+    if (!service?.currentSelection || !service?.saveSelection) return { available: false }
+    const selected = service.currentSelection()
+    const models = (await rt.catalog({ fresh: true })).filter(model => !model.needsKey)
+    const ref = selected?.provider && selected?.model ? `${selected.provider}/${selected.model}` : ''
+    const reasoning = ref ? await rt.reasoningOf(ref) : undefined
+    return { available: true, models, ref, effort: selected?.reasoningEffort ?? '', efforts: reasoning?.efforts ?? [] }
+  }
+
+  async function setDefaultModel(body) {
+    const service = ctx.get?.('agentDefaultModel')
+    if (!service?.saveSelection) throw invalid('Default model settings are unavailable')
+    const ref = String(body.ref ?? '')
+    const entry = (await rt.catalog({ fresh: true })).find(model => model.ref === ref && !model.needsKey)
+    if (!entry) throw invalid('This model is not available')
+    const effort = body.effort ? await rt.resolveEffort(ref, body.effort) : undefined
+    await service.saveSelection({ provider: entry.provider, model: entry.id, ...(effort ? { reasoningEffort: effort } : {}) })
+    return defaultModelsView()
+  }
+
+  const accountProviders = { 'openai-codex': 'ChatGPT', anthropic: 'Claude', xai: 'Grok' }
+  const attempts = new Map()
+  const accountId = id => {
+    const provider = id || 'openai-codex'
+    if (!Object.hasOwn(accountProviders, provider)) throw invalid('Unknown account provider')
+    return provider
+  }
+  const accountKey = id => `llm-pi-ai/${accountId(id)}`
+
+  async function accountStatus(id) {
+    const provider = accountId(id)
+    const key = accountKey(provider)
+    const authorization = ctx.get?.('authorization')
+    const credentials = ctx.get?.('credentials')
+    const flow = authorization?.describe(key)
+    const available = !!flow?.methods?.some(method => method.id === 'oauth')
+    const info = available && credentials?.describeRecord ? await credentials.describeRecord(key) : null
+    const state = attempts.get(provider)
+    return { provider, available, connected: info?.configured === true, attempt: state && { status: state.status, notice: state.notice, prompt: state.prompt, error: state.error } }
+  }
+
+  async function accountStart(id) {
+    const provider = accountId(id)
+    const key = accountKey(provider)
+    const authorization = ctx.get?.('authorization')
+    const flow = authorization?.describe(key)
+    if (!flow?.methods?.some(method => method.id === 'oauth')) throw invalid('Account sign-in is not available')
+    if (attempts.get(provider)?.status === 'pending') throw invalid('Sign-in is already in progress')
+    const state = { status: 'pending', notice: null, prompt: null, answer: null, reject: null }
+    attempts.set(provider, state)
+    const interaction = {
+      notify(notice) { state.notice = { message: String(notice.message ?? ''), ...(typeof notice.url === 'string' && /^https:\/\//i.test(notice.url) ? { url: notice.url } : {}), ...(notice.code ? { code: String(notice.code) } : {}) } },
+      prompt(prompt) {
+        return new Promise((resolve, reject) => {
+          const abort = () => { state.prompt = null; state.answer = null; state.reject = null; reject(new Error('Prompt cancelled')) }
+          if (prompt.signal?.aborted) return abort()
+          state.prompt = { kind: prompt.kind, message: prompt.message, placeholder: prompt.placeholder, options: prompt.options }
+          state.reject = abort
+          state.answer = value => { prompt.signal?.removeEventListener('abort', abort); state.prompt = null; state.answer = null; state.reject = null; resolve(value) }
+          prompt.signal?.addEventListener('abort', abort, { once: true })
+        })
+      },
+    }
+    void authorization.begin({ key, method: 'oauth', interaction }).then(async result => {
+      if (state.status !== 'pending') return
+      if (result.status !== 'authorized') { state.status = 'cancelled'; state.notice = null; state.prompt = null; return }
+      const entry = entryOf(provider)
+      const { settings } = usable()
+      const map = sections(settings)
+      if (!entry || entry.settingsNs !== PI_AI || entry.declared) throw invalid('Account provider is not available')
+      if (profileOf(entry, map) === undefined) await settings.mutate(PI_AI, [{ op: 'set', path: entry.settingsPath, value: {} }], map.get(PI_AI)?.revision)
+      rt.dropCatalog()
+      state.status = 'authorized'
+      state.notice = null
+      state.prompt = null
+    }).catch(() => { if (state.status !== 'cancelled') { state.status = 'failed'; state.error = 'Sign-in failed. Please try again.' } state.notice = null; state.prompt = null; state.answer = null; state.reject = null })
+    return accountStatus(provider)
+  }
+
+  function accountAnswer(value, id) {
+    const state = attempts.get(accountId(id))
+    if (!state?.answer || typeof value !== 'string') throw invalid('No sign-in question is waiting')
+    state.answer(value)
+  }
+
+  function accountCancel(id) {
+    const provider = accountId(id)
+    const state = attempts.get(provider)
+    if (state?.status === 'pending') { state.status = 'cancelled'; state.notice = null; state.reject?.(); state.prompt = null; state.answer = null }
+    ctx.get?.('authorization')?.cancel(accountKey(provider))
+  }
+
+  async function accountSignOut(id) {
+    const provider = accountId(id)
+    accountCancel(provider)
+    await usable().credentials.deleteRecord(accountKey(provider))
+    attempts.delete(provider)
+    rt.dropCatalog()
+  }
+
+  Object.assign(rt, { keyRefs, missingKeys, providersView, setProviderKey, clearProviderKey, addProvider, discoverModels, removeProvider, defaultModelsView, setDefaultModel, accountStatus, accountStart, accountAnswer, accountCancel, accountSignOut })
 }

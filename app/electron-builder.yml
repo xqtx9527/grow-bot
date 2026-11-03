@@ -1,16 +1,25 @@
-appId: local.jarvis.app2
-productName: Nomi
-copyright: Personal build
-artifactName: Nomi-${version}-${os}-${arch}.${ext}
+appId: local.grow-bot.app
+productName: Grow Bot
+copyright: Copyright © 2026 qinsir
+artifactName: Grow Bot-${version}-${os}-${arch}.${ext}
 directories:
   output: dist-pack
 files:
   - package.json
   - src/**
   - assets/**
+  # The source the other icons are built from.
+  - '!assets/icon.svg'
+  # Source maps and type declarations are never read at run time. Markdown stays: skills are made of it.
+  - '!**/node_modules/**/*.map'
+  - '!**/node_modules/**/*.d.ts'
+  - '!**/node_modules/**/*.d.mts'
+  - '!**/node_modules/**/*.d.cts'
+  - '!**/node_modules/**/*.tsbuildinfo'
 # The Host runs pnpm as a separate Node process to install plugins, and the Office payload's
 # plain Node runs the LibreOffice Kit CLI: both must be plain files outside the asar.
 asarUnpack:
+  - node_modules/@zsxq/**
   - node_modules/pnpm/**
   - node_modules/@deepseek-ai/libreoffice-kit/**
   # The payload Node cannot read office.js through the asar.
@@ -58,9 +67,9 @@ linux:
       arch: [x64]
   # The binary and the deb's menu entry take this name; productName has a space, which a
   # terminal command should not have.
-  executableName: deepseek-bot
+  executableName: grow-bot
   # A deb needs a maintainer; package.json's author has no email, so it goes here.
-  maintainer: Fei2411 <https://github.com/Fei2411>
+  maintainer: qinsir <https://github.com/xqtx9527>
   # Links the running window to the menu entry (WM_CLASS = app id).
   syncDesktopName: true
   icon: assets/icon.png

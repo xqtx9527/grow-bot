@@ -7,10 +7,6 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 Third-party code in this repository
 ==============================================================================
 
-grok-bot-avatar-engine (https://github.com/RongleCat/grok-bot-avatar-engine)
-MIT License, Copyright (c) 2026 RongleCat. The vendored source and its full
-license are in ds-bot/src/client/vendor/grok-avatar/; its eye rendering is adapted.
-
 blob-avatar (https://github.com/c0le0ni/blob-avatar)
 MIT License, Copyright (c) 2026 Michel Coleoni (Coleoni Soluções Digitais).
 The avatar shapes in ds-bot/src/client/blob-characters.js and animation engine
@@ -70,12 +66,6 @@ MIT License, Copyright (c) 2026 DeepSeek
     apps/desktop/src/preload-browser.ts: the webview leases, the attachment
     checks and fixed guest preferences, the session policy and the new-window
     requests.
-  - app/engine/cordis.patch.yml follows the bundle patch of
-    @deepseek-ai/dsh-web-app (packages/bundle/web-app/cordis.patch.yml): the
-    transport and host-service rows and the agent-plane rows it turns off.
-    app/engine/preset-standard.patch.yml copies its standard preset
-    (presets/standard.patch.yml), including the plan-mode prompt text,
-    without the goal rows.
   - .agents/skills/record-browser-gif/ comes from the skill of the same name
     in DeepSeek Harness (.agents/skills/record-browser-gif/): SKILL.md is
     adapted and translated for this repository; scripts/encode_gif.py and
@@ -160,3 +150,26 @@ their ideas; it does not contain their code.
     (packages/experimental/client-ui-voice-input), MIT: the voice chat
     records with the same steps (record, resample to 16 kHz mono, PCM16 WAV)
     before it calls the plugin's speech service.
+
+Brand names and logos are trademarks of their respective owners.
+
+Domestic connectors: @getnote/mcp 1.10.1 (MIT), by GetNote,
+https://github.com/iswalle/getnote-mcp; @modelcontextprotocol/sdk 1.30.0
+(MIT), https://github.com/modelcontextprotocol/typescript-sdk.
+Their license notices are distributed with the bundled packages.
+
+Browser sign-in: the GetNote device authorization protocol follows the official
+MIT-licensed CLI documentation/source at https://github.com/iswalle/getnote-cli.
+ZSXQ sign-in and API calls use zsxq-cli 0.5.1 and its platform package
+(Apache-2.0), https://github.com/unnoo/zsxq-skill.
+
+Connector logos, included at the user’s request for service identification:
+Gmail and Notion: SVGL, https://svgl.app/
+GitHub: Simple Icons, https://simpleicons.org/, CC0-1.0
+Baidu Netdisk: Worldvectorlogo, https://worldvectorlogo.com/logo/baidu-netdisk
+GetNote: https://www.biji.com/favicon.ico
+Feishu: https://www.feishu.cn/favicon.ico
+Tencent Meeting: https://meeting.tencent.com/favicon.ico
+Knowledge Planet: https://zsxq.com/assets/img/logo.svg (the mark, without its wordmark)
+These brand assets remain the property of their respective owners and are not
+covered by this project’s Apache-2.0 license. No endorsement is implied.

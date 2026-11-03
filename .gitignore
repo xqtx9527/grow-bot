@@ -1,11 +1,14 @@
 node_modules/
 *.tgz
-# The desktop app's window build (npm run build in app/), its packages (npm run pack, npm run dist)
+# The desktop app's packages (npm run pack, npm run dist)
 # and the next version that checks its update (see app/README.md). The Office runtime payload
 # (npm run runtime in app/) is downloaded per machine.
-/app/ui/dist/
 /app/dist-pack/
 /app/dist-next/
+/app/dist-account/
+/app/dist-account-fixed/
+/app/dist-chatgpt/
+/app/dist-*/
 /app/build/runtime/
 /app/build/runtime-cache/
 
@@ -36,3 +39,6 @@ node_modules/
 
 # Bytecode from the record-browser-gif encoder's local media tests.
 __pycache__/
+
+# macOS folder metadata.
+.DS_Store

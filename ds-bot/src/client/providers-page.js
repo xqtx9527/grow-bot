@@ -25,6 +25,7 @@ export function ProvidersPage({ actions, run, Section }) {
   if (view === null) return null
   if (!view.available) return h('p', { className: 'bt-set-hint' }, t('This DSH cannot set up model providers.'))
   return [
+    actions.defaultModels ? h(DefaultModelSection, { key: 'default', actions, Section }) : null,
     h(Section, { key: 'list', title: t('Model providers · {count}', { count: view.providers.length }) },
       view.providers.map(provider => h(ProviderRow, {
         key: provider.id, provider, apply, actions,
@@ -33,6 +34,33 @@ export function ProvidersPage({ actions, run, Section }) {
       adding ? h(AddProvider, { key: 'add', view, apply, actions, onDone: () => setAdding(false) }) : null),
     adding ? null : h('div', { key: 'add', className: 'bt-actions' }, h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => setAdding(true) }, t('Add a provider'))),
   ]
+}
+
+export function DefaultModelSection({ actions, Section }) {
+  const [view, setView] = useState(null)
+  const [provider, setProvider] = useState('')
+  const [search, setSearch] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const refresh = () => actions.defaultModels().then(setView).catch(() => setError(t('Could not load models.')))
+  useEffect(() => { void refresh(); const timer = setInterval(() => { if (!busy) void refresh() }, 5000); return () => clearInterval(timer) }, [busy])
+  if (!view?.available) return error ? h('div', { role: 'alert', className: 'bt-set-hint' }, error) : null
+  const providers = [...new Map(view.models.map(model => [model.provider, model.providerName])).entries()]
+  const preferred = provider || view.ref.split('/')[0]
+  const active = providers.some(([id]) => id === preferred) ? preferred : providers[0]?.[0]
+  const choices = view.models.filter(model => model.provider === active && `${model.name} ${model.id}`.toLowerCase().includes(search.toLowerCase()))
+  const save = (ref, effort = '') => {
+    setBusy(true); setError('')
+    void actions.setDefaultModel({ ref, effort }).then(setView).catch(() => setError(t('Could not save the default model.'))).finally(() => setBusy(false))
+  }
+  return h(Section, { title: t('Default model') },
+    h('div', { className: 'bt-provider-form' },
+      h('div', { className: 'bt-set-hint' }, t('New Bots use this model by default. Existing Bots keep their own models.')),
+      providers.length ? h('select', { className: 'bt-select', 'aria-label': t('Provider'), value: active, onChange: event => { setProvider(event.target.value); setSearch('') } }, providers.map(([id, name]) => h('option', { key: id, value: id }, name))) : h('div', { className: 'bt-set-hint' }, t('Connect a provider to choose a model.')),
+      providers.length ? h('input', { className: 'bt-input', value: search, placeholder: t('Search models'), 'aria-label': t('Search models'), onChange: event => setSearch(event.target.value) }) : null,
+      h('div', { className: 'bt-provider-found bt-secret-bots', role: 'radiogroup', 'aria-label': t('Models') }, choices.map(model => h('button', { key: model.ref, type: 'button', role: 'radio', 'aria-checked': model.ref === view.ref, className: 'bt-secret-bot', disabled: busy, onClick: () => save(model.ref) }, model.name, model.ref === view.ref ? h(CheckIcon) : null))),
+      view.ref && view.efforts.length > 0 && view.models.some(model => model.ref === view.ref) && view.ref.startsWith(`${active}/`) ? h('label', { className: 'bt-provider-form' }, t('Thinking level'), h('select', { className: 'bt-select', value: view.effort, disabled: busy, onChange: event => save(view.ref, event.target.value) }, h('option', { value: '' }, t('Default')), view.efforts.map(effort => h('option', { key: effort.id, value: effort.id }, effort.name)))) : null,
+      error ? h('div', { className: 'bt-set-hint', role: 'alert' }, error) : null))
 }
 
 function keyState(key) {
@@ -169,6 +197,28 @@ function FormActions({ onCancel, onAdd, ready }) {
 }
 
 export const PROVIDERS_CSS = `
+.bt-provider-page{display:flex;flex-direction:column;gap:20px;max-width:800px}
+.bt-provider-intro{display:flex;flex-direction:column;gap:4px}
+.bt-provider-intro-title{font-size:16px;font-weight:650;color:var(--bt-ink)}
+.bt-provider-modes{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--bt-bubble);align-self:flex-start}
+.bt-provider-modes button{border:0;border-radius:8px;background:transparent;color:var(--bt-ink-2);padding:8px 18px;font:inherit;cursor:pointer}
+.bt-provider-modes button[aria-selected=true]{background:var(--bt-main);color:var(--bt-ink);box-shadow:0 1px 3px var(--bt-line-2)}
+.bt-provider-search{width:100%;box-sizing:border-box}
+.bt-provider-list{border:1px solid var(--bt-line);border-radius:12px;overflow:hidden;background:var(--bt-main)}
+.bt-provider-list .bt-provider-summary{border-bottom:1px solid var(--bt-line);padding:13px 16px}
+.bt-provider-list .bt-provider-summary:last-child{border-bottom:0}
+.bt-provider-summary:hover{background:var(--bt-bubble)}
+.bt-provider-chevron{font-size:22px;color:var(--bt-ink-3)}
+.bt-provider-detail{display:flex;flex-direction:column;gap:18px}
+.bt-provider-back{align-self:flex-start;border:0;background:none;padding:0;color:var(--bt-ink-2);font:inherit;cursor:pointer}
+.bt-provider-hero{display:flex;align-items:center;gap:16px;padding:18px;border:1px solid var(--bt-line);border-radius:12px}
+.bt-provider-hero-title{font-size:18px;font-weight:650;color:var(--bt-ink)}
+
+.bt-provider-summary{display:flex;align-items:center;gap:14px;width:100%;text-align:left}
+.bt-provider-summary .bt-set-copy{flex:1;min-width:0}
+.bt-provider-initial{display:grid;place-items:center;border:1px solid var(--bt-line-2);border-radius:8px;font-weight:600;font-size:13px}
+.bt-provider-card{border-bottom:1px solid var(--bt-line)}
+
 .bt-provider-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--bt-ink-3)}
 .bt-provider .bt-set-hint[data-error]{color:var(--bt-danger)}
 .bt-provider-state{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--bt-ink-2);white-space:nowrap}

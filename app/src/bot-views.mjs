@@ -5,7 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative as relativePath, resolve, sep } from 'node:path'
 import { WebSocketServer } from 'ws'
-import { allowedNavigation, requestAllowed } from './bot-browser.mjs'
+import { allowedNavigation } from './bot-browser.mjs'
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 const PLAYWRIGHT_ARTIFACT_PREFIX = 'playwright-artifacts-'

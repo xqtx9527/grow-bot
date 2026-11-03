@@ -5,6 +5,7 @@
 // Usage: node scripts/check-packed.mjs [app executable] [screenshot.png]
 // The executable defaults to the one that `npm run pack` or `npm run dist` writes into dist-pack/.
 import { spawn, spawnSync } from 'node:child_process'
+import { createServer as createHttpServer } from 'node:http'
 import { connect, createServer } from 'node:net'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,11 +19,11 @@ const executable = given || packedExecutable()
 
 function packedExecutable() {
   const out = join(root, 'dist-pack')
-  if (process.platform === 'win32') return join(out, 'win-unpacked', 'DeepSeek Bot.exe')
+  if (process.platform === 'win32') return join(out, 'win-unpacked', 'Grow Bot.exe')
   // executableName in electron-builder.yml.
-  if (process.platform === 'linux') return join(out, 'linux-unpacked', 'deepseek-bot')
+  if (process.platform === 'linux') return join(out, 'linux-unpacked', 'grow-bot')
   const dir = ['mac-arm64', 'mac'].find(name => existsSync(join(out, name))) ?? 'mac'
-  return join(out, dir, 'DeepSeek Bot.app', 'Contents', 'MacOS', 'DeepSeek Bot')
+  return join(out, dir, 'Grow Bot.app', 'Contents', 'MacOS', 'Grow Bot')
 }
 
 if (!existsSync(executable)) {
@@ -219,7 +220,7 @@ function micaRules() {
     .filter(rule => rule.length > 0)
 }
 
-async function chat(cdp) {
+async function chat(cdp, gateway) {
   const evaluate = async expression => (await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value
   const until = async (expression, label, ms = 120_000) => {
     const end = Date.now() + ms
@@ -244,6 +245,16 @@ async function chat(cdp) {
   await evaluate("document.querySelector('.bt-model-chip:not(.bt-model-chip-quiet)').click()")
   // The mock model's greeting for a new team.
   await until(text('先让团队帮你做哪块'), 'the greeting')
+  // A character answers a click, and the narrow rail renders: neither shows in a test of parts.
+  if (process.platform === 'darwin') {
+    const regions = await evaluate("JSON.stringify([getComputedStyle(document.body, '::before').webkitAppRegion ?? getComputedStyle(document.body, '::before').getPropertyValue('-webkit-app-region'), getComputedStyle(document.querySelector('.bt-side-actions button, button')).getPropertyValue('-webkit-app-region')])")
+    if (regions !== '["drag","no-drag"]') throw new Error(`the window's drag band is off: ${regions}`)
+  }
+  await evaluate("document.querySelector('.bt-mark[data-live]').click()")
+  await until("document.querySelector('.bt-mark[data-react]')", 'a character answering a click')
+  await cdp.call('Emulation.setDeviceMetricsOverride', { width: 600, height: 800, deviceScaleFactor: 1, mobile: false })
+  await until("document.querySelector('.bt-rail .bt-rail-top')", 'the narrow rail')
+  await cdp.call('Emulation.clearDeviceMetricsOverride')
   await dismissNotice()
   // Click the composer through the input pipeline. A bare focus() is not enough where no window
   // manager gives the window focus (xvfb in CI): the text and the Enter would go nowhere.
@@ -306,6 +317,46 @@ async function chat(cdp) {
   }
   await sleep(1000)
   console.log(`check-packed: chat ${JSON.stringify(await evaluate('document.body.innerText.slice(-200)'))}`)
+  // A Bot on a model behind Magpie: the connection, the model directory and one real turn.
+  const bot = (endpoint, payload = {}) => evaluate(`fetch('api/bot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(${JSON.stringify({ endpoint, payload })}) }).then(r => r.json())`)
+  const connected = await bot('magpie-configure', { endpoint: gateway.url })
+  if (connected.value?.modelCount !== 1) throw new Error(`Magpie did not connect: ${JSON.stringify(connected)}`)
+  await bot('models')
+  const updated = await bot('update-bot', { id: main, model: `magpie/${GATEWAY_MODEL}` })
+  if (updated.ok === false) throw new Error(`the Bot did not take the Magpie model: ${JSON.stringify(updated)}`)
+  await evaluate("document.querySelector('[data-composer-card] [contenteditable=\"true\"], [contenteditable=\"true\"]').focus()")
+  await cdp.call('Input.insertText', { text: 'gateway check' })
+  await sleep(300)
+  for (const type of ['keyDown', 'keyUp']) await cdp.call('Input.dispatchKeyEvent', { type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
+  await until(text(GATEWAY_REPLY), 'the reply through Magpie')
+  if (gateway.keys.at(-1) !== 'Bearer magpie') throw new Error(`the gateway got the key ${String(gateway.keys.at(-1))}`)
+}
+
+const GATEWAY_MODEL = 'gateway-model'
+const GATEWAY_REPLY = 'reply through the gateway'
+
+// As much of Magpie as a route needs: its manifest, its models and a streamed OpenAI reply.
+async function startGateway() {
+  const keys = []
+  const server = createHttpServer((request, response) => {
+    const send = (body) => { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify(body)) }
+    const path = request.url.split('?')[0]
+    if (path === '/') return send({ name: 'magpie', version: 'check' })
+    if (path === '/v1/models') return send({ data: [{ id: GATEWAY_MODEL, owned_by: 'check' }] })
+    if (path !== '/v1/chat/completions') { response.writeHead(404); return response.end() }
+    keys.push(request.headers.authorization)
+    request.resume()
+    request.on('end', () => {
+      response.writeHead(200, { 'content-type': 'text/event-stream' })
+      const chunk = (delta, finish = null) => response.write(`data: ${JSON.stringify({ id: 'c1', object: 'chat.completion.chunk', created: 1, model: GATEWAY_MODEL, choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`)
+      chunk({ role: 'assistant', content: GATEWAY_REPLY })
+      chunk({}, 'stop')
+      response.end('data: [DONE]\n\n')
+    })
+  })
+  await new Promise((done) => { server.listen(0, '127.0.0.1', done) })
+  server.unref()
+  return { keys, url: `http://127.0.0.1:${String(server.address().port)}` }
 }
 
 let failed = false
@@ -314,6 +365,7 @@ try {
   const packedApp = outsideCheckout(resolve(executable))
   checkSharp(packedApp)
   const modelUrl = await startMock()
+  const gateway = await startGateway()
   const port = await freePort()
   const mainPort = await freePort()
   // A terminal inside an Electron-based editor may set ELECTRON_RUN_AS_NODE, which turns the app into plain Node.
@@ -337,7 +389,7 @@ try {
     if (answer.exceptionDetails) throw new Error(answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text)
     return answer.result?.value
   }
-  const chatError = await chat(cdp).then(() => undefined, error => error)
+  const chatError = await chat(cdp, gateway).then(() => undefined, error => error)
   if (shotFile) {
     const { data } = await cdp.call('Page.captureScreenshot', { format: 'png' })
     writeFileSync(resolve(shotFile), Buffer.from(data, 'base64'))

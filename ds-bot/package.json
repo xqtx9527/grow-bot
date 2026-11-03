@@ -1,7 +1,7 @@
 {
   "name": "ds-bot",
-  "version": "0.2.4",
-  "description": "DS Bot: a team of long-lived Bots for DeepSeek Harness, with Main Bots, Bot-to-Bot messages and group chats",
+  "version": "0.5.1",
+  "description": "Grow Bot: a team of long-lived Bots, with Main Bots, Bot-to-Bot messages and group chats",
   "keywords": [
     "dsh-plugin",
     "deepseek-harness",
@@ -11,13 +11,13 @@
     "multi-agent",
     "agents"
   ],
-  "homepage": "https://github.com/Fei2411/DS-Bot#readme",
+  "homepage": "https://github.com/xqtx9527/grow-bot#readme",
   "bugs": {
-    "url": "https://github.com/Fei2411/DS-Bot/issues"
+    "url": "https://github.com/xqtx9527/grow-bot/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fei2411/DS-Bot.git",
+    "url": "git+https://github.com/xqtx9527/grow-bot.git",
     "directory": "ds-bot"
   },
   "license": "Apache-2.0",
@@ -67,6 +67,9 @@
     "esbuild": "0.28.2"
   },
   "dependencies": {
-    "deep-view": "0.1.0"
+    "@getnote/mcp": "1.10.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "deep-view": "0.1.0",
+    "zsxq-cli": "0.5.1"
   }
 }

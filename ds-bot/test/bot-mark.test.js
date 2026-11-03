@@ -53,11 +53,12 @@ test('a photo that does not load shows the Bot\'s character instead', () => {
   img.props.onError()
   assert.deepEqual(sets, [photo])
   // Rendered again with that photo marked broken: the character, not an empty image.
-  states.push(false, photo)
+  states.push(photo)
   const mark = BotMark({ bot })
-  assert.equal(mark.children[0].type, 'svg')
+  assert.match(mark.props.dangerouslySetInnerHTML.__html, /<svg/)
   assert.notEqual(mark.props['data-shape'], 'image')
   // A new photo is tried again.
-  states.push(false, photo)
+  states.push(photo)
   assert.equal(BotMark({ bot: { ...bot, avatar: { ...bot.avatar, image: `${photo}AA` } } }).children[0].type, 'img')
 })
+

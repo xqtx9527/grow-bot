@@ -1,5 +1,5 @@
 import { ACCENT_INKS, INKS, isHex, luminance } from './inks.js'
-import { SHAPES, markupCache, maskCache } from './characters.js'
+import { SHAPES, maskCache } from './characters.js'
 import { createSource } from './sources.js'
 
 // -------------------------------------------------------------------------
@@ -10,7 +10,7 @@ const THEME_KEYS = ['bg', 'sidebar', 'bubble', 'card', 'text', 'user', 'userText
 const THEMES = {
   deepseek: {
     label: 'DeepSeek',
-    // The Jarvis look: black, white and grey only; colour is left to the Bot avatars.
+    // The Grow Bot look: black, white and grey only; colour is left to the Bot avatars.
     light: { bg: '#ffffff', sidebar: '#fafafa', bubble: '#f2f2f2', card: '#ffffff', text: '#111111', user: '#111111', userText: '#ffffff', accent: '#111111' },
     dark: { bg: '#0f0f0f', sidebar: '#161616', bubble: '#242424', card: '#1c1c1c', text: '#f2f2f2', user: '#f2f2f2', userText: '#111111', accent: '#f2f2f2' },
   },
@@ -91,7 +91,6 @@ export function registerShape(id, shape) {
     ...(typeof shape.wrap === 'string' ? { wrap: shape.wrap } : {}),
   }
   const refresh = () => {
-    markupCache.clear()
     maskCache.delete(id)
     registry.set(value => value + 1)
   }

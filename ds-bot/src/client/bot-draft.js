@@ -1,7 +1,10 @@
 // Plain helpers for the Create Bot form, kept free of React so tests can load them.
 
-export function freshBotName(roster, base = 'New Bot') {
+import { nextBotName } from '../shared/bot-names.js'
+
+export function freshBotName(roster, base) {
   const taken = new Set(roster.bots.map(bot => bot.name.toLowerCase()))
+  if (base === undefined) return nextBotName(taken)
   if (!taken.has(base.toLowerCase())) return base
   let index = 2
   while (taken.has(`${base.toLowerCase()} ${index}`)) index += 1

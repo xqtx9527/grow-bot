@@ -39,6 +39,7 @@ test('apply registers listeners, tools, and effects in a fixed order', (t) => {
     'on llm/adapters-updated',
     'on credentials/reference-updated',
     'on settings/document-updated',
+    'effect ds-bot: magpie sync',
     'on session/event',
     'on tools/execute',
     'effect ds-bot: agent tool restrict retry',
@@ -103,6 +104,7 @@ test('apply registers listeners, tools, and effects in a fixed order', (t) => {
     'on llm/stream',
     'effect ds-bot: load secrets',
     'effect ds-bot: connectors',
+    'effect ds-bot: oauth connectors',
     'on agent/created',
     'effect ds-bot: capabilities',
     'on agent/status',
@@ -143,7 +145,7 @@ test('the client channel answers from the saved state', async (t) => {
   const loaded = (await call('state')).value
   const [chief, writer] = ['m1', 'b2'].map(id => loaded.bots.find(bot => bot.id === id))
   assert.deepEqual(loaded.mainBotIds, ['m1'])
-  assert.deepEqual([chief.model, chief.color, chief.avatar?.shape], ['ollama/deepseek-v4.1-flash', 'deepseek', 'whale'])
+  assert.deepEqual([chief.model, chief.color, chief.avatar?.shape], ['ollama/deepseek-v4.1-flash', 'orange', 'blob-circle'])
   assert.deepEqual([writer.role, writer.model, writer.color, writer.avatar, writer.instructions], ['写作', undefined, undefined, undefined, 'Kimi-style long reads'])
   const saved = (await call('state')).value.bots
   assert.equal(saved.some(bot => 'lab' in bot), false)
@@ -153,6 +155,9 @@ test('the client channel answers from the saved state', async (t) => {
   assert.deepEqual(await call('send', { text: ' ' }), { ok: false, error: { code: 'bot/invalid', message: 'Nothing to send', details: {} } })
   assert.deepEqual(await call('nope'), { ok: false, error: { code: 'bot/not-found', message: 'Unknown endpoint nope', details: {} } })
   assert.deepEqual(await call('set-prefs', { accent: 'red' }), { ok: false, error: { code: 'bot/invalid', message: 'Accent must be a #rrggbb color', details: {} } })
+  assert.equal((await call('set-prefs', { accent: 'bot' })).value.accent, 'bot')
+  assert.equal((await call('state')).value.prefs.accent, 'bot')
+  assert.equal('accent' in (await call('set-prefs', { accent: null })).value, false)
   // The motion level is kept unless it is the default, and only the three levels pass.
   assert.equal((await call('set-prefs', { motion: 'lively' })).value.motion, 'lively')
   assert.equal('motion' in (await call('set-prefs', { motion: 'normal' })).value, false)

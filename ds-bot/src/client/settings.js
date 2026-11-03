@@ -1,8 +1,8 @@
-import { Component, createElement as h, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Component, createElement as h, Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { ACCENT_INKS, INKS } from './inks.js'
 import { isMainOf } from './sources.js'
 import { MESSAGE_WIDTH, allThemes, flatWidthOf, layoutOf, thinkingShown, widthOf } from './themes.js'
-import { CloseIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, ConnectorIcon, InfoIcon, PlugIcon, PlusIcon, SlidersIcon, SETTINGS_ICONS } from './icons.js'
+import { CloseIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, BrainIcon, ConnectorIcon, ConnectorsIcon, InfoIcon, PlugIcon, PlusIcon, SlidersIcon, SETTINGS_ICONS } from './icons.js'
 import { AdminStar, BotAvatar, RoomAvatar } from './mark.js'
 import { useEscape } from './overlay-hooks.js'
 import { BotSettingsForm, Switch } from './bot-settings.js'
@@ -13,12 +13,13 @@ import { KeptPrivateSection } from './kept-private.js'
 import { KeyIcon, SecretsPage } from './secret-card.js'
 import { UsagePage } from './usage-page.js'
 import { ConnectorsPage } from './connectors.js'
-import { CapabilitiesPage } from './capability-settings.js'
+import { LibraryPage } from './capability-settings.js'
 import { BrowserPage } from './browser-settings.js'
 import { SchedulesPage } from './schedules.js'
 import { FeedbackIcon, FeedbackPage } from './feedback.js'
 import { AboutPage } from './about.js'
 import { ProvidersPage } from './providers-page.js'
+import { MagpieCard } from './magpie-card.js'
 import { FolderMenu } from './folder-menu.js'
 import { language, setLocale, t } from './i18n.js'
 
@@ -27,8 +28,10 @@ const capitalize = word => word[0].toUpperCase() + word.slice(1)
 // Settings dialog: a 198px page list beside the page. Bots and group chats each list
 // their members, and one opens on its own settings form. Usage widens the dialog.
 // Models is there only in a window without DSH's own settings, which carry the providers.
-const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['connectors', 'Connectors'], ['capabilities', 'Capabilities'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Secrets'], ['feedback', 'Feedback'], ['about', 'About Nomi']]
-const PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, connectors: ConnectorIcon, capabilities: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon }
+const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['skills', 'Skills'], ['connectors', 'Connectors'], ['plugins', 'Plugins'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Secrets'], ['feedback', 'Feedback'], ['about', 'About Grow Bot']]
+// A heading goes above the page it names.
+const PAGE_GROUPS = { skills: 'Customize', browser: 'More' }
+const PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, skills: BrainIcon, connectors: ConnectorsIcon, plugins: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon }
 
 function EmbeddedEntry({ entry, actions, owner = {} }) {
   const ops = useMemo(() => entry.inject?.() ?? {}, [entry])
@@ -47,7 +50,7 @@ function EmbeddedEntry({ entry, actions, owner = {} }) {
 class SettingsPageBoundary extends Component {
   constructor(props) { super(props); this.state = { failed: false } }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(error) { console.error('Jarvis: settings page could not be displayed', error) }
+  componentDidCatch(error) { console.error('Grow Bot: settings page could not be displayed', error) }
   render() {
     if (!this.state.failed) return this.props.children
     return h('div', { className: 'bt-error', role: 'alert' }, t('This settings page could not be displayed.'))
@@ -59,7 +62,7 @@ export function EmbeddedSettings({ section, actions, close }) {
   useSyncExternalStore(listener => slots.subscribe('settings.section', listener), () => slots.getVersion('settings.section'))
   const entry = slots.entries('settings.section').find(item => item.options.id === section)
   if (entry) return h(EmbeddedEntry, { key: section, entry, actions, owner: { close } })
-  if (section === 'account' && actions.canSignIn?.()) return h('button', { type: 'button', className: 'bt-soft', onClick: () => actions.signIn() }, t('Sign in to DeepSeek'))
+  if (section === 'account' && actions.canSignIn?.()) return h('button', { type: 'button', className: 'bt-soft', onClick: () => actions.signIn() }, t('Sign in'))
   if (section === 'account') return h('div', { className: 'bt-note' }, t('Account sign-in is unavailable'))
   return h('div', { className: 'bt-note' }, t('This DSH cannot load models'))
 }
@@ -113,7 +116,7 @@ function GeneralPage({ roster, actions, run }) {
   const prefs = roster.prefs ?? {}
   const themes = allThemes()
   const current = themes[prefs.theme] ? prefs.theme : 'deepseek'
-  const [custom, setCustom] = useState(prefs.accent ?? '#4d6bfe')
+  const [custom, setCustom] = useState(/^#[0-9a-f]{6}$/i.test(prefs.accent ?? '') ? prefs.accent : '#4d6bfe')
   const timer = useRef(0)
   useEffect(() => () => clearTimeout(timer.current), [])
   const pickCustom = (value) => {
@@ -138,11 +141,12 @@ function GeneralPage({ roster, actions, run }) {
       h(SetRow, { label: t('Accent'), hint: t('Unread marks, badges, and the brand mark.') },
         h('div', { className: 'bt-swatches' },
           h('button', { type: 'button', className: 'bt-swatch bt-swatch-default', title: t('Theme accent'), 'aria-label': t('Theme accent'), 'aria-pressed': !prefs.accent, onClick: () => run(actions.setPrefs({ accent: null })) }),
+          h('button', { type: 'button', className: 'bt-swatch bt-swatch-bot', title: t('Follow Bot color'), 'aria-label': t('Follow Bot color'), 'aria-pressed': prefs.accent === 'bot', onClick: () => run(actions.setPrefs({ accent: 'bot' })) }, 'B'),
           ACCENT_INKS.map(ink => h('button', {
             key: ink, type: 'button', className: 'bt-swatch', title: t(capitalize(ink)), 'aria-label': t(capitalize(ink)), 'aria-pressed': prefs.accent === INKS[ink][0],
             style: { background: INKS[ink][0] }, onClick: () => run(actions.setPrefs({ accent: INKS[ink][0] })),
           })),
-          h('label', { className: 'bt-swatch bt-swatch-custom', title: t('Custom accent'), 'data-on': Boolean(prefs.accent) && !ACCENT_INKS.some(ink => INKS[ink][0] === prefs.accent) },
+          h('label', { className: 'bt-swatch bt-swatch-custom', title: t('Custom accent'), 'data-on': Boolean(prefs.accent) && prefs.accent !== 'bot' && !ACCENT_INKS.some(ink => INKS[ink][0] === prefs.accent) },
             h('input', { type: 'color', value: custom, 'aria-label': t('Custom accent'), onChange: event => pickCustom(event.target.value) })))),
       h(SetRow, { label: t('Message layout') }, h(Choice, { label: t('Message layout'), value: layoutOf(prefs), options: LAYOUTS, pick: id => run(actions.setPrefs({ layout: id })) })),
       // The flat layout's text has a width of its own; the bubble width stays for the user's messages.
@@ -185,7 +189,7 @@ function LocationsSection({ actions, run }) {
   return h(SetSection, { title: t('Files'), className: 'bt-set-places' },
     h(SetRow, { label: t('Bot files'), hint: t('Where Bots write their files, unless a Bot has a folder of its own.') },
       team === null ? null : h(FolderMenu, { value: team, team: true, actions, run, onPick: pickTeam, disabled: moving })),
-    data === null ? null : h(SetRow, { label: t('Nomi data'), hint: data.path },
+    data === null ? null : h(SetRow, { label: t('Grow Bot data'), hint: data.path },
       h('div', { className: 'bt-set-buttons' },
         app?.openPath ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => openFolder(data.path) }, t('Open folder')) : null,
         data.fixed ? null : h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: moving, onClick: () => { if (!busy.current) void run(app.moveData(team ?? undefined)) } }, t('Change…')))))
@@ -284,7 +288,7 @@ export function SettingsDialog({ page, id, roster, actions, useUpdate, leaving =
   // A Bot or group deleted while its form is open leaves its page on the list.
   const bot = page === 'bots' && id ? roster.byId[id] : undefined
   const room = page === 'groups' && id ? roster.roomsById[id] : undefined
-  const pages = SETTINGS_PAGES.filter(([key]) => !['models', 'account'].includes(key) || actions.settingsSlots !== undefined || (key === 'models' && actions.providers !== undefined))
+  const pages = SETTINGS_PAGES.filter(([key]) => (!['models', 'account'].includes(key) || actions.settingsSlots !== undefined || (key === 'models' && actions.providers !== undefined)))
   const shown = pages.some(([key]) => key === page) ? page : 'general'
   const usageFocus = shown === 'usage' && id ? id : null
   const label = t(pages.find(([key]) => key === shown)[1])
@@ -310,9 +314,9 @@ export function SettingsDialog({ page, id, roster, actions, useUpdate, leaving =
     h('div', { className: 'bt-settings', role: 'dialog', 'aria-modal': true, 'aria-label': t('Settings') },
       h('nav', { ref: nav.box, className: 'bt-settings-nav', 'aria-label': t('Settings pages') },
         h('span', { ref: nav.thumb, className: 'bt-thumb', 'aria-hidden': true }),
-        pages.map(([key, text]) => h('button', {
-          key, type: 'button', className: 'bt-settings-item', 'aria-current': shown === key ? 'page' : undefined, onClick: () => actions.openSettings(key),
-        }, h(PAGE_ICONS[key]), t(text))),
+        pages.map(([key, text]) => h(Fragment, { key },
+          PAGE_GROUPS[key] ? h('span', { className: 'bt-settings-group' }, t(PAGE_GROUPS[key])) : null,
+          h('button', { type: 'button', className: 'bt-settings-item', 'aria-current': shown === key ? 'page' : undefined, onClick: () => actions.openSettings(key) }, h(PAGE_ICONS[key]), t(text)))),
         ),
       h('div', { className: 'bt-settings-main' },
         h('div', { className: 'bt-settings-head' },
@@ -322,13 +326,15 @@ export function SettingsDialog({ page, id, roster, actions, useUpdate, leaving =
           errorLine,
           shown === 'general' ? h(GeneralPage, { roster, actions, run }) : null,
           shown === 'account' && actions.settingsSlots ? h(SettingsPageBoundary, { key: 'account' }, h(EmbeddedSettings, { section: 'account', actions, close })) : null,
+          shown === 'models' ? h(MagpieCard, { key: 'magpie', actions }) : null,
           shown === 'models' ? (actions.settingsSlots ? h(SettingsPageBoundary, { key: 'models' }, h(EmbeddedSettings, { section: 'models', actions, close })) : h(ProvidersPage, { actions, run, Section: SetSection })) : null,
           bot ? h('div', { className: 'bt-settings-form' }, h(BotSettingsForm, { key: bot.id, bot, roster, actions, run })) : null,
           shown === 'bots' && !bot ? h(BotsPage, { roster, actions, run }) : null,
           room ? h('div', { className: 'bt-settings-form' }, h(GroupSettingsForm, { key: room.id, room, roster, actions, run })) : null,
           shown === 'groups' && !room ? h(GroupsPage, { roster, actions, run }) : null,
-          shown === 'connectors' ? h(ConnectorsPage, { roster, actions }) : null,
-          shown === 'capabilities' ? h(CapabilitiesPage, { roster, actions, run }) : null,
+          shown === 'skills' ? h(LibraryPage, { kind: 'skill', roster, actions, run }) : null,
+          shown === 'connectors' ? h(ConnectorsPage, { roster, actions, run }) : null,
+          shown === 'plugins' ? h(LibraryPage, { kind: 'pack', roster, actions, run }) : null,
           shown === 'browser' ? h(BrowserPage, { roster, actions, run, Section: SetSection, Row: SetRow }) : null,
           shown === 'schedules' ? h(SchedulesPage, { roster, actions, start: id ?? undefined }) : null,
           shown === 'secrets' ? h(SecretsPage, { roster, actions, run, Section: SetSection }) : null,

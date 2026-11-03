@@ -44,7 +44,7 @@ export function install(rt) {
 
   let bootstrapping = null
 
-  // The team folder is DS Bot's own: deleted, it is made again before a Session needs it.
+  // The team folder is Grow Bot's own: deleted, it is made again before a Session needs it.
   async function keepTeamFolder() {
     const team = rt.teamFolder()
     if (team !== undefined) await mkdir(team, { recursive: true }).catch(error => rt.warn('ds-bot: team folder %s not made again: %s', team, error))
@@ -58,7 +58,7 @@ export function install(rt) {
     }
     const path = rt.defaultTeamFolder()
     await mkdir(path, { recursive: true })
-    const workspace = await ctx.workspaceRegistry.resolveByPath(path) ?? await ctx.workspaceRegistry.create(path, 'DS Bot')
+    const workspace = await ctx.workspaceRegistry.resolveByPath(path) ?? await ctx.workspaceRegistry.create(path, 'Grow Bot')
     state.workspaceId = workspace.id
     await rt.save()
     return workspace.id
@@ -699,9 +699,9 @@ export function install(rt) {
     await rt.load()
     void rt.syncModels()
     if (state.mainBotIds.some(id => rt.botOf(id))) return
-    // Only the team's first Main Bot is stored as the DeepSeek whale; other Bots get a
-    // look from their id, and a Bot made Main Bot later keeps its own.
-    bootstrapping ??= createBot({ name: defaults.mainName, role: defaults.mainRole, main: true, color: 'deepseek', avatar: { shape: 'whale' }, pickModel: true })
+    // The team's first Main Bot starts on the plain orange circle;
+    // other Bots get a look from their id, and a Bot made Main Bot later keeps its own.
+    bootstrapping ??= createBot({ name: defaults.mainName, role: defaults.mainRole, main: true, color: 'orange', avatar: { shape: 'blob-circle' }, pickModel: true })
       .finally(() => { bootstrapping = null })
     await bootstrapping
   }

@@ -91,7 +91,3 @@ describe('reconcileOfficeRuntime', () => {
 
 // The first-run check reads chats without the team or the Office payload: the Host asks for
 // the overlay only for the main profile.
-test('the check profile boots without the Office overlay', () => {
-  const source = readFileSync(new URL('../src/host.mjs', import.meta.url), 'utf8')
-  assert.match(source, /check === undefined \? reconcileOfficeRuntime\(profile\) : \{ patchFiles: \[\] \}/u)
-})

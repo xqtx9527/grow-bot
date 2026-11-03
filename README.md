@@ -1,22 +1,52 @@
-# Nomi 糯米
+# Grow Bot
 
-Nomi 糯米 是一个基于 [DS Bot](https://github.com/Fei2411/DS-Bot) 和 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的桌面 AI 助手项目。当前版本为 **0.1**，仍在开发中。
+English | [中文](README.zh.md)
 
-## 功能
+Grow Bot is a desktop AI assistant built on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness):
+a team of long-lived Bots, each with its own conversations, memory, model and working folder, that work
+alone or together in group chats.
 
-- 创建和管理多个 Bot，为它们选择头像、模型和工作文件夹。
-- 与 Bot 单独对话，或通过群聊协作。
-- 在对话中添加文件和图片，并管理 Bot 记忆。
-- 使用桌面应用界面调整 Bot、模型及相关设置。
+> **Preview, version 0.5.1.** Developed on macOS with Apple silicon. Builds are unsigned. Windows support
+> is in the code, but it has not been run yet; see [docs/grow-bot/windows.zh.md](docs/grow-bot/windows.zh.md).
 
-模型能力和文件处理效果取决于所配置的模型及服务。请自行配置模型账号或 API 密钥；不要将凭证、聊天记录或个人数据提交到仓库。
+## What it does
 
-## 运行和开发
+- **Long-lived Bots**: separate conversations, memory, models and folders.
+- **Group chats**: Bots hand work to each other, and a Main Bot assigns and sums up.
+- **A desktop app**: sessions, Bot settings, usage, schedules, model settings, a browser for Bots and Office tools.
+- **Characters that respond**: Bots move with what they are doing and answer clicks and the pointer.
+- **Any model**: connect the [Magpie](https://github.com/yetone/magpie) gateway to give each Bot a different model.
+- **Your data stays local**: everything lives in `~/.ds-bot`; models are reached with your own account or API key.
 
-桌面壳位于 [`app/`](app/)，Bot 插件位于 [`ds-bot/`](ds-bot/)。构建说明参见 [桌面应用文档](app/README.md)和[插件文档](ds-bot/README.md)。
+## Build it
 
-本仓库尚未发布可下载的 Nomi 糯米 安装包。上游平台和安装说明不代表 Nomi 糯米 版本已经在所有平台验证。
+You need macOS on Apple silicon and Node 24.
 
-## 致谢与许可
+```bash
+cd ds-bot && npm ci && npm run harness && cd ..
+cd app && npm ci --legacy-peer-deps && npm run runtime && cd ..
+scripts/rebuild-grow-bot.sh
+```
 
-本项目基于 [DS Bot](https://github.com/Fei2411/DS-Bot) 开发。头像使用 [blob-avatar](https://github.com/c0le0ni/blob-avatar) 等开源项目的代码。相关版权、许可证及其他第三方说明见 [NOTICE](NOTICE)、[LICENSE](LICENSE) 和各组件内的许可证。原项目说明保留在 [README.upstream.md](README.upstream.md)。
+`rebuild-grow-bot.sh` builds the app, installs it to `/Applications` and starts it. To run every check
+without installing, use `scripts/check-all.sh`.
+
+## Layout
+
+```
+app/              Electron desktop app
+ds-bot/           DeepSeek Harness plugin: Bots, memory, group chats, Office tools
+browser-plugins/  Browser backends for Bots
+docs/grow-bot/        Design notes and process (Chinese)
+scripts/          Build, check, version and backup commands
+```
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). [AGENTS.md](AGENTS.md) holds the rules
+for AI coding agents, and they apply to everyone.
+
+## License
+
+[Apache License 2.0](LICENSE). Grow Bot grew out of [DS-Bot](https://github.com/Fei2411/DS-Bot); that work and other
+third-party material are credited in [NOTICE](NOTICE).

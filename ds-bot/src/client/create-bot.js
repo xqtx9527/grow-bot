@@ -1,8 +1,8 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import { BotMark } from './mark.js'
 import { CharacterGrid } from './bot-settings.js'
-import { DEFAULT_SHAPES, DEFAULT_COLORS, CREATE_SHAPES } from './characters.js'
-import { ChevronLeftIcon, CloseIcon } from './icons.js'
+import { CREATE_SHAPES, DEFAULT_COLORS, PICKER_SHAPES } from './characters.js'
+import { CloseIcon } from './icons.js'
 import { useEscape } from './overlay-hooks.js'
 import { createPayload, freshBotName, startModel } from './bot-draft.js'
 import { ModelMenu } from './model-menu.js'
@@ -12,14 +12,12 @@ import { paintCss } from './inks.js'
 
 const pick = list => list[Math.floor(Math.random() * list.length)]
 const randomLook = (avoid = {}) => {
-  const shapes = DEFAULT_SHAPES.filter(shape => shape !== avoid.shape)
-  const colors = DEFAULT_COLORS.filter(color => color !== avoid.color)
-  return { shape: pick(shapes), color: pick(colors) }
+  return { shape: pick(PICKER_SHAPES.filter(shape => shape !== avoid.shape)), color: pick(DEFAULT_COLORS.filter(color => color !== avoid.color)) }
 }
 
 // The new-Bot form: look first, then name and model. Nothing exists until Create.
 // `inline` drops the pane's header for a form shown inside Settings.
-export function CreateBot({ roster, actions, start, brief = '', onBack, canGoBack, onCreated, inline = false, bodyOnly = false, typeSelector = null }) {
+export function CreateBot({ roster, actions, start, brief = '', onBack, onCreated, inline = false, bodyOnly = false, typeSelector = null }) {
   const [look, setLook] = useState(() => randomLook())
   const [name, setName] = useState(start?.name ?? '')
   const [model, setModel] = useState(() => startModel(roster))
@@ -30,7 +28,7 @@ export function CreateBot({ roster, actions, start, brief = '', onBack, canGoBac
   useEscape(bodyOnly ? undefined : onBack)
   // Inside Settings the form opens below other sections, so it scrolls itself into view.
   useEffect(() => { if (inline) frame.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) }, [])
-  const fallbackName = freshBotName(roster, t('New Bot'))
+  const fallbackName = freshBotName(roster)
   const finalName = name.trim() || fallbackName
   const clash = roster.bots.some(bot => bot.name.toLowerCase() === finalName.toLowerCase())
   const problem = nameProblem(finalName)
@@ -70,7 +68,7 @@ export function CreateBot({ roster, actions, start, brief = '', onBack, canGoBac
     error ? h('div', { className: 'bt-error', role: 'alert', style: { padding: 0 } }, error) : null,
     h('div', { className: 'bt-create-foot' },
       h('button', { type: 'button', className: 'bt-soft', onClick: onBack }, t('Cancel')),
-      h('button', { type: 'button', className: 'bt-send bt-create-go', style: { background: paintCss(look.color), color: '#fff' }, disabled: busy || clash || Boolean(problem), onClick: () => void create() }, busy ? t('Creating…') : t('Create'))))
+      h('button', { type: 'button', className: 'bt-send bt-create-go', style: { background: paintCss(look.color), color: 'var(--bt-accent-ink)' }, disabled: busy || clash || Boolean(problem), onClick: () => void create() }, busy ? t('Creating…') : t('Create'))))
 
   if (bodyOnly) return body
   const card = h('div', { className: 'bt-create-card' },

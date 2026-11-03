@@ -1,7 +1,10 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { t } from './i18n.js'
+import { hostText, t } from './i18n.js'
+import { BrainIcon, PlugIcon, PlusIcon } from './icons.js'
+import { BUILT_IN_PLUGINS, BUILT_IN_SKILLS } from './library-catalog.js'
+import { LibraryBar, LibraryCard, LibraryGrid, matches } from './library-page.js'
 
-const blank = () => ({ name: '', kind: 'mcp', description: '', transport: 'stdio', command: '', argsText: '', envText: '{}', url: '', headersText: '{}', content: '', items: [] })
+export const blank = () => ({ name: '', kind: 'mcp', description: '', transport: 'stdio', command: '', argsText: '', envText: '{}', url: '', headersText: '{}', content: '', items: [] })
 const parseMap = (text, label) => {
   let value
   try { value = JSON.parse(text || '{}') } catch { throw new Error(t('{label} must be valid JSON.', { label })) }
@@ -27,7 +30,7 @@ function Field({ label, value, onChange, multiline = false, disabled = false, pl
     }))
 }
 
-function CapabilityForm({ draft, setDraft, items, actions, onClose }) {
+export function CapabilityForm({ draft, setDraft, items, actions, onClose }) {
   const [error, setError] = useState('')
   const set = (key, value) => setDraft(previous => ({ ...previous, [key]: value }))
   const submit = async event => {
@@ -61,10 +64,6 @@ function CapabilityForm({ draft, setDraft, items, actions, onClose }) {
   const available = items.filter(item => item.name !== draft.name && ['mcp', 'skill'].includes(item.kind))
   return h('form', { className: 'bt-connector-form', onSubmit: submit },
     h(Field, { label: 'Name', value: draft.name, disabled: draft.originalName !== undefined, onChange: value => set('name', value), placeholder: 'my-tool' }),
-    h('label', { className: 'bt-set-row bt-bs-row bt-bs-stack' },
-      h('span', { className: 'bt-set-copy' }, h('span', { className: 'bt-bs-label' }, t('Type'))),
-      h('select', { className: 'bt-input', value: draft.kind, disabled: draft.originalName !== undefined, onChange: event => set('kind', event.target.value) },
-        ['mcp', 'skill', 'pack'].map(kind => h('option', { key: kind, value: kind }, t(kind === 'mcp' ? 'MCP server' : kind === 'skill' ? 'Skill' : 'Pack'))))),
     h(Field, { label: 'Description', value: draft.description, onChange: value => set('description', value) }),
     draft.kind === 'mcp' ? h('label', { className: 'bt-set-row bt-bs-row bt-bs-stack' },
       h('span', { className: 'bt-set-copy' }, h('span', { className: 'bt-bs-label' }, t('Connection'))),
@@ -87,67 +86,115 @@ function CapabilityForm({ draft, setDraft, items, actions, onClose }) {
     error ? h('div', { className: 'bt-connector-error', role: 'alert' }, error) : null,
     h('div', { className: 'bt-connector-form-row' },
       h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: onClose }, t('Cancel')),
-      h('button', { type: 'submit', className: 'bt-soft bt-soft-sm' }, draft.originalName ? t('Save changes') : t('Add capability'))))
+      h('button', { type: 'submit', className: 'bt-soft bt-soft-sm' }, draft.originalName ? t('Save changes') : t('Add'))))
 }
 
-function CapabilityRow({ item, onEdit, onDelete, onApprove, confirming }) {
-  const detail = item.kind === 'pack' ? `${t('Pack')}: ${(item.items ?? []).join(', ') || t('No items')}`
-    : item.kind === 'mcp' ? item.transport === 'stdio' ? t('Local command') : t('HTTP server')
-      : t('Skill')
-  const secondary = item.kind === 'pack'
-    ? [item.description, (item.items ?? []).join(', ') || t('No items')].filter(Boolean).join(' · ')
-    : item.description || detail
-  return h('div', { className: 'bt-connector' },
-    h('div', { className: 'bt-connector-head' },
-      h('span', { className: 'bt-connector-text' },
-        h('span', { className: 'bt-connector-name' }, item.name),
-        h('span', { className: 'bt-connector-status' }, secondary)),
-      h('span', { className: 'bt-connector-actions' },
-        item.kind === 'mcp' && item.transport === 'stdio' && !item.approved
-          ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: onApprove }, t('Allow')) : null,
-        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: onEdit }, t('Edit')),
-        h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: onDelete }, confirming ? t('Click again to delete.') : t('Delete')))))
-}
+export const capabilityDraft = item => ({
+  ...blank(),
+  ...item,
+  originalName: item.name,
+  argsText: (item.args ?? []).join('\n'),
+  envText: JSON.stringify(item.env ?? {}, null, 2),
+  headersText: JSON.stringify(item.headers ?? {}, null, 2),
+  items: [...(item.items ?? [])],
+})
 
-export function CapabilitiesPage({ roster, actions, run }) {
-  const items = [...(roster.capabilities ?? [])].sort((a, b) => a.name.localeCompare(b.name))
-  const [draft, setDraft] = useState(null)
-  const [confirming, setConfirming] = useState('')
+// One saved item as a card, for all three kinds.
+export function CapabilityCard({ item, mark, actions, run, onEdit }) {
+  const [confirming, setConfirming] = useState(false)
   useEffect(() => {
     if (!confirming) return undefined
-    const timer = setTimeout(() => setConfirming(''), 4000)
+    const timer = setTimeout(() => setConfirming(false), 4000)
     return () => clearTimeout(timer)
   }, [confirming])
-  const startNew = () => setDraft(blank())
-  const edit = item => setDraft({
-    ...blank(),
-    ...item,
-    originalName: item.name,
-    argsText: (item.args ?? []).join('\n'),
-    envText: JSON.stringify(item.env ?? {}, null, 2),
-    headersText: JSON.stringify(item.headers ?? {}, null, 2),
-    items: [...(item.items ?? [])],
-  })
-  const remove = item => {
-    if (confirming !== item.name) { setConfirming(item.name); return }
-    setConfirming('')
-    void run(actions.deleteCapability(item.name))
+  const detail = item.kind === 'pack' ? (item.items ?? []).join(', ') || t('No items')
+    : item.kind === 'mcp' ? (item.transport === 'stdio' ? t('Local command') : t('HTTP server')) : ''
+  return h(LibraryCard, { mark, title: item.name, text: item.description || detail },
+    item.kind === 'mcp' && item.transport === 'stdio' && !item.approved
+      ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => void run(actions.approveCapability(item.name)) }, t('Allow')) : null,
+    h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: onEdit }, t('Edit')),
+    h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => { if (confirming) void run(actions.deleteCapability(item.name)); else setConfirming(true) } }, confirming ? t('Click again to delete.') : t('Delete')))
+}
+
+function DiscoverCard({ entry, mark, install, run }) {
+  return h(LibraryCard, { mark, title: t(entry.title), text: t(entry.description) },
+    h('button', { type: 'button', className: 'bt-connector-add', 'aria-label': t('Add {name}', { name: t(entry.title) }), title: t('Add'), onClick: () => void run(install(entry)) }, h(PlusIcon)))
+}
+
+// A skill from GitHub: nothing is saved until its text has been read here.
+function SkillImport({ actions, onClose }) {
+  const [url, setUrl] = useState('')
+  const [found, setFound] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const attempt = async (task) => {
+    setBusy(true)
+    setError('')
+    try { await task() } catch (failure) { setError(hostText(failure?.message ?? String(failure))) } finally { setBusy(false) }
   }
+  const read = () => attempt(async () => setFound(await actions.importSkill(url)))
+  const save = () => attempt(async () => {
+    await actions.saveCapability({ name: found.name, kind: 'skill', description: found.description, content: found.content })
+    onClose()
+  })
+  return h('div', { className: 'bt-connector-form' },
+    found === null
+      ? h('input', { className: 'bt-input', value: url, autoFocus: true, spellCheck: false, placeholder: 'https://github.com/owner/repo/tree/main/skill', 'aria-label': t('GitHub address'), onChange: event => setUrl(event.target.value) })
+      : [
+          h('div', { key: 'name', className: 'bt-connector-name' }, found.name),
+          h('div', { key: 'hint', className: 'bt-set-hint' }, found.description || t('Read it before you add it. Bots will follow these instructions.')),
+          h('pre', { key: 'text', className: 'bt-library-preview' }, found.content),
+        ],
+    error ? h('div', { className: 'bt-connector-error bt-connector-error-flush', role: 'alert' }, error) : null,
+    h('div', { className: 'bt-connector-form-row' },
+      h('span', { className: 'bt-connector-link' }),
+      h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy, onClick: onClose }, t('Cancel')),
+      found === null
+        ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy || url.trim() === '', onClick: () => void read() }, busy ? t('Checking…') : t('Next'))
+        : h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: busy, onClick: () => void save() }, t('Add'))))
+}
+
+const PAGES = {
+  skill: { mark: BrainIcon, catalog: BUILT_IN_SKILLS, empty: 'No skills yet. Add one from Discover.', hint: 'Turn a skill on for a Bot in its settings.' },
+  pack: { mark: PlugIcon, catalog: BUILT_IN_PLUGINS, empty: 'No plugins yet. Add one from Discover.', hint: 'Turn a plugin on for a Bot in its settings.' },
+}
+
+// Settings → Skills and Settings → Plugins.
+export function LibraryPage({ kind, roster, actions, run }) {
+  const page = PAGES[kind]
+  const library = roster.capabilities ?? []
+  const items = library.filter(item => item.kind === kind).sort((a, b) => a.name.localeCompare(b.name))
+  const [tab, setTab] = useState(items.length > 0 ? 'mine' : 'discover')
+  const [query, setQuery] = useState('')
+  const [adding, setAdding] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const Mark = page.mark
+  const has = name => library.some(item => item.name === name)
+  const skillOf = name => BUILT_IN_SKILLS.find(skill => skill.name === name)
+  const saveSkill = skill => actions.saveCapability({ name: skill.name, kind: 'skill', description: skill.description, content: skill.content })
+  const install = async (entry) => {
+    if (kind === 'skill') await saveSkill(entry)
+    else {
+      for (const name of entry.items) if (!has(name)) await saveSkill(skillOf(name))
+      await actions.saveCapability({ name: entry.name, kind: 'pack', description: entry.description, items: entry.items })
+    }
+    setTab('mine')
+  }
+  const shown = tab === 'mine'
+    ? items.filter(item => matches(query, item.name, item.description)).map(item => h(CapabilityCard, { key: item.name, item, mark: h(Mark), actions, run, onEdit: () => setDraft(capabilityDraft(item)) }))
+    : page.catalog.filter(entry => !has(entry.name) && matches(query, t(entry.title), t(entry.description))).map(entry => h(DiscoverCard, { key: entry.name, entry, mark: h(Mark), install, run }))
+  const panel = draft ? h(CapabilityForm, { draft, setDraft, items: library, actions, onClose: () => setDraft(null) })
+    : adding === 'import' ? h(SkillImport, { actions, onClose: () => { setAdding(null); setTab('mine') } })
+      : adding === 'choose' ? h('div', { className: 'bt-library-choices' },
+          h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => { setAdding(null); setDraft({ ...blank(), kind: 'skill' }) } }, t('Write a skill')),
+          h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => setAdding('import') }, t('Import from GitHub')),
+          h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => setAdding(null) }, t('Cancel')))
+        : null
   return h('section', { className: 'bt-set-section' },
-    h('h3', null, t('Shared capabilities')),
-    h('div', { className: 'bt-actions' },
-      h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: startNew }, t('Add capability'))),
-    draft ? h(CapabilityForm, { draft, setDraft, items, actions, onClose: () => setDraft(null) }) : null,
-    h('div', { className: 'bt-set-card bt-connectors-card' },
-      items.length === 0 ? h('div', { className: 'bt-set-row' }, h('span', { className: 'bt-set-hint' }, t('No capabilities saved')))
-        : items.map(item => h(CapabilityRow, {
-          key: item.name,
-          item,
-          confirming: confirming === item.name,
-          onEdit: () => edit(item),
-          onDelete: () => remove(item),
-          onApprove: () => void run(actions.approveCapability(item.name)),
-        }))))
+    h(LibraryBar, { tab, onTab: setTab, query, onQuery: setQuery, onAdd: () => { if (kind === 'skill') setAdding('choose'); else setDraft({ ...blank(), kind }) } }),
+    panel ? h('div', { className: 'bt-library-panel' }, panel) : null,
+    tab === 'mine' && items.length > 0 ? h('p', { className: 'bt-set-hint' }, t(page.hint)) : null,
+    h(LibraryGrid, { empty: t(tab === 'mine' && query === '' ? page.empty : 'Nothing found') }, shown))
 }
 
 export function BotCapabilitiesCard({ bot, roster, actions, run, Card, SwitchRow }) {

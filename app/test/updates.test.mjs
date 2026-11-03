@@ -42,7 +42,7 @@ const release = (version, options = {}) => {
   const arch = options.arch ?? 'arm64'
   return {
     tag_name: `v${version}`,
-    html_url: options.page ?? `https://github.com/Fei2411/DS-Bot/releases/tag/v${version}`,
+    html_url: options.page ?? `https://github.com/xqtx9527/grow-bot/releases/tag/v${version}`,
     draft: options.draft ?? false,
     prerelease: options.prerelease ?? false,
     assets: options.assets ?? [{ name: `DeepSeek-Bot-${version}-mac-${arch}.zip` }],
@@ -96,7 +96,7 @@ describe('watchReleases', () => {
   })
 
   test('reports a newer release and opens its page only when accepted', async (t) => {
-    const page = 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.1.9'
+    const page = 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.1.9'
     for (const accepted of [true, false]) {
       const asked = []
       const opened = []
@@ -168,10 +168,10 @@ describe('watchReleases', () => {
 
   test('logs failed requests, invalid JSON, and non-HTTPS release pages without throwing', async (t) => {
     const cases = [
-      [async () => releaseResponse({}, 403), 'DeepSeek Bot: update check failed: HTTP 403'],
-      [async () => { throw new Error('offline') }, 'DeepSeek Bot: update check failed: offline'],
-      [async () => ({ ok: true, status: 200, json: async () => { throw new Error('bad JSON') } }), 'DeepSeek Bot: update check failed: bad JSON'],
-      [async () => releaseResponse([release('0.1.9', { page: 'http://github.com/Fei2411/DS-Bot' })]), 'DeepSeek Bot: update check failed: release page URL is not HTTPS'],
+      [async () => releaseResponse({}, 403), 'Grow Bot: update check failed: HTTP 403'],
+      [async () => { throw new Error('offline') }, 'Grow Bot: update check failed: offline'],
+      [async () => ({ ok: true, status: 200, json: async () => { throw new Error('bad JSON') } }), 'Grow Bot: update check failed: bad JSON'],
+      [async () => releaseResponse([release('0.1.9', { page: 'http://github.com/xqtx9527/grow-bot' })]), 'Grow Bot: update check failed: release page URL is not HTTPS'],
     ]
     for (const [fetch, message] of cases) {
       const log = quietLog()
@@ -189,7 +189,7 @@ describe('watchReleases', () => {
     })
     t.after(updates.stop)
     assert.equal(await updates.latest(), null)
-    assert.deepEqual(log.lines, ['DeepSeek Bot: update check failed: releases response is not an array'])
+    assert.deepEqual(log.lines, ['Grow Bot: update check failed: releases response is not an array'])
   })
 
   test('waits for the matching-architecture zip before asking', async (t) => {
@@ -212,14 +212,14 @@ describe('watchReleases', () => {
     attached = true
     t.mock.timers.tick(4 * 60 * 60_000)
     assert.deepEqual(await updates.latest(), {
-      version: '0.1.9', page: 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.1.9',
+      version: '0.1.9', page: 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.1.9',
     })
     await sleep(0)
     assert.deepEqual(asked, ['0.1.9'])
   })
 
   test('a given asset replaces the mac zip: the deb of a Linux install', async (t) => {
-    const page = 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.1.9'
+    const page = 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.1.9'
     // The deb's file name uses the Debian architecture (x64 → amd64).
     const deb = version => `DeepSeek-Bot-${version}-linux-amd64.deb`
     // A release with only the mac zip does not count for a deb install.
@@ -257,7 +257,7 @@ describe('watchReleases', () => {
     })
     t.after(updates.stop)
     assert.deepEqual(await updates.latest(), {
-      version: '0.2.0-rc.2', page: 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.2.0-rc.2',
+      version: '0.2.0-rc.2', page: 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.2.0-rc.2',
     })
   })
 
@@ -279,7 +279,7 @@ describe('watchReleases', () => {
     })
     t.after(updates.stop)
     assert.deepEqual(await updates.latest(), {
-      version: '0.1.10', page: 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.1.10',
+      version: '0.1.10', page: 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.1.10',
     })
   })
 
@@ -296,7 +296,7 @@ describe('watchReleases', () => {
     t.after(updates.stop)
     await updates.latest()
     await sleep(20)
-    assert.deepEqual(log.lines, ['DeepSeek Bot: update 0.1.9 available', 'DeepSeek Bot: update 0.1.9 not opened: dialog failed'])
+    assert.deepEqual(log.lines, ['Grow Bot: update 0.1.9 available', 'Grow Bot: update 0.1.9 not opened: dialog failed'])
     assert.deepEqual(unhandled, [])
   })
 
@@ -322,7 +322,7 @@ describe('watchReleases', () => {
     assert.equal(await none.latest(), null)
     assert.deepEqual(none.state(), { phase: 'current' })
 
-    const page = 'https://github.com/Fei2411/DS-Bot/releases/tag/v0.1.9'
+    const page = 'https://github.com/xqtx9527/grow-bot/releases/tag/v0.1.9'
     const found = watchReleases({
       current: '0.1.7', arch: 'arm64', fetch: async () => releaseResponse([release('0.1.9', { page })]), log: quietLog(),
     })
@@ -433,7 +433,7 @@ describe('watchUpdates', () => {
       await sleep(20)
       assert.deepEqual(updater.installs, [])
       assert.equal(stopped, false)
-      assert.deepEqual(log.lines, ['DeepSeek Bot: update 0.1.9 downloaded'])
+      assert.deepEqual(log.lines, ['Grow Bot: update 0.1.9 downloaded'])
     }
   })
 
@@ -444,7 +444,7 @@ describe('watchUpdates', () => {
     const updates = watchUpdates({ updater, beforeInstall: async () => {}, log })
     t.after(updates.stop)
     assert.equal(await updates.latest(), null)
-    assert.deepEqual(log.lines, ['DeepSeek Bot: update failed: offline'])
+    assert.deepEqual(log.lines, ['Grow Bot: update failed: offline'])
   })
 
   test('tells what the newest check found and whether its download finished', async (t) => {

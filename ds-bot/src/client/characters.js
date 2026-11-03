@@ -1,6 +1,5 @@
-import { INKS, GRADIENTS, isHex, inkFill } from './inks.js'
+import { INKS, GRADIENTS, isHex } from './inks.js'
 import { BLOB_CHARACTERS } from './blob-characters.js'
-import { SHAPES as GROK_SHAPE_NAMES } from './vendor/grok-avatar/src/catalog.mjs'
 
 // -------------------------------------------------------------------------
 // Characters: DS Bot's own avatars, small 3D models seen from a
@@ -34,7 +33,9 @@ export const CHARACTERS = {
 // The Grok Bot-like blob set: the picker offers these, five to a row. Old characters stay
 // registered so existing Bots keep their look; the whale stays the Main Bot's own mark.
 Object.assign(CHARACTERS, BLOB_CHARACTERS)
-for (const name of GROK_SHAPE_NAMES) CHARACTERS[`grok-${name}`] = { label: name[0].toUpperCase() + name.slice(1), body: 'M50 5a45 45 0 1 0 0 90a45 45 0 1 0 0-90', eyes: [] }
+// Ids stored on existing Bots; each draws through the blob engine in mark.js.
+const LEGACY_SHAPE_NAMES = ['blob', 'pebble', 'bean', 'egg', 'squircle', 'tablet', 'capsule', 'cylinder', 'hex', 'gem', 'crystal', 'wedge', 'shield', 'dome', 'arch', 'cloud', 'teardrop', 'leaf', 'square', 'sparkle', 'clover', 'flower', 'heart', 'house', 'star']
+for (const name of LEGACY_SHAPE_NAMES) CHARACTERS[`grok-${name}`] = { label: name[0].toUpperCase() + name.slice(1), body: 'M50 5a45 45 0 1 0 0 90a45 45 0 1 0 0-90', eyes: [] }
 export const PICKER_SHAPES = ['circle', 'cloud', 'squircle', 'star', 'clover', 'heart', 'flower', 'droplet', 'capsule', 'triangle', 'ghost', 'diamond', 'hexagon', 'pebble'].map(name => `blob-${name}`)
 export const PICKER_COLUMNS = 5
 // The picker presents fourteen characters in rows of five, five and four.
@@ -42,7 +43,7 @@ export const CREATE_SHAPES = PICKER_SHAPES
 export const DEFAULT_SHAPES = ['grok-blob', 'grok-pebble', 'grok-squircle', 'grok-tablet', 'grok-wedge', 'grok-hex', 'grok-cloud', 'grok-teardrop']
 export const FALLBACK_SHAPE = 'grok-blob'
 // The team's first Main Bot, and the plugin's own mark in the sidebar.
-export const MAIN_LOOK = Object.freeze({ shape: 'whale', color: 'deepseek' })
+export const MAIN_LOOK = Object.freeze({ shape: 'blob-circle', color: 'orange' })
 // Character colors in picker order. Black, the gradients, and the dull gray and brown
 // are never defaults; the user must pick them.
 export const CHARACTER_COLORS = ['black', 'brown', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet', 'magenta', 'gray']
@@ -100,8 +101,6 @@ export function bodyOf(def, paint, flat = false) {
   try { return def.body(paint) } catch { return '' }
 }
 const eyeMarkup = ([cx, cy, w, h, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><rect class="bt-eye" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${w / 2}"/></g>`
-// A closed, happy eye (an upturned arc) in the same spot, shown while the mark is petted.
-const happyEyeMarkup = ([cx, cy, w, h, tilt]) => `<g transform="translate(${cx} ${cy}) rotate(${tilt})"><path class="bt-eye-happy" opacity="0" d="M${-w * 0.62} ${h * 0.14}Q0 ${-h * 0.42} ${w * 0.62} ${h * 0.14}" fill="none" stroke="#000" stroke-width="${w * 0.5}" stroke-linecap="round"/></g>`
 // A mask covering three boxes, so a bob or squash never clips the body at the edge.
 export const maskBox = size => `maskUnits="userSpaceOnUse" x="${-size}" y="${-size}" width="${size * 3}" height="${size * 3}"`
 export const holes = (def, eyes) => `<rect x="${-def.size}" y="${-def.size}" width="${def.size * 3}" height="${def.size * 3}" fill="#fff"/>${eyes}`
@@ -111,23 +110,6 @@ export const holes = (def, eyes) => `<rect x="${-def.size}" y="${-def.size}" wid
 export const MASK_ID = '%MASK%'
 let markSerial = 0
 export const nextMarkSerial = () => (markSerial += 1)
-export const markupCache = new Map()
-export function characterMarkup(shape, color) {
-  const key = `${shape}|${color}`
-  let markup = markupCache.get(key)
-  if (markup === undefined) {
-    const def = shapeOf(shape)
-    // The eyes sit in the mask, untransformed by their placement, so CSS blinks and
-    // glances never replace where they sit.
-    const eyes = `<g class="bt-gaze"><g class="bt-eyes" fill="#000">${def.eyes.map(eyeMarkup).join('')}${def.eyes.map(happyEyeMarkup).join('')}</g></g>`
-    const stops = GRADIENTS[color]
-    const gradient = stops ? `<linearGradient id="${MASK_ID}g" gradientUnits="userSpaceOnUse" x1="18" y1="10" x2="78" y2="92">${stops.map(([offset, value]) => `<stop offset="${offset}" stop-color="${value}"/>`).join('')}</linearGradient>` : ''
-    const body = `<g mask="url(#${MASK_ID})">${bodyOf(def, stops ? `url(#${MASK_ID}g)` : inkFill(color))}</g>`
-    markup = `<defs>${gradient}<mask id="${MASK_ID}" ${maskBox(def.size)}>${holes(def, eyes)}</mask></defs><g class="bt-b">${def.wrap ? `<g transform="${def.wrap}">${body}</g>` : body}</g>`
-    markupCache.set(key, markup)
-  }
-  return markup
-}
 const svgUrl = (inner, size) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`)}")`
 export const maskCache = new Map()
 export function maskOf(shape) {

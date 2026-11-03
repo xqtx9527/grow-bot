@@ -22,6 +22,35 @@ ${Object.entries(INKS).map(([name, [, dark]]) => `body[data-ds-dark-theme]{--bt-
 .bt-mark{display:inline-block;flex:none;position:relative;line-height:0}
 .bt-mark svg{width:100%;height:100%;overflow:visible}
 .bt-mark-img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;box-shadow:inset 0 0 0 1px var(--bt-line)}
+/* A live mark leans to the pointer on rotate and translate, which add to any transform of its own. */
+.bt-mark[data-live]>svg{translate:var(--bt-look-x,0) var(--bt-look-y,0);rotate:var(--bt-look-tilt,0deg);transition:translate .18s ease-out,rotate .18s ease-out}
+.bt-mark-fx{position:absolute;left:50%;top:6%;z-index:3;width:1em;margin-left:-.5em;font-size:max(12px,calc(var(--bt-size,44px) * .2));line-height:1;text-align:center;color:var(--bt-accent);opacity:0;pointer-events:none;animation:bt-mark-fx 1.1s ease-out var(--bt-fx-delay,0ms) both}
+@keyframes bt-mark-fx{0%{opacity:0;transform:translate(0,0) scale(.5)}25%{opacity:1}100%{opacity:0;transform:translate(var(--bt-fx-x,0),-130%) scale(1.15)}}
+@media (prefers-reduced-motion:no-preference){
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-state=idle][data-rest=sleepy]>svg{animation:bt-sleep 4.6s ease-in-out infinite!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=hop]>svg{animation:bt-react-hop .7s cubic-bezier(.3,1.4,.6,1) 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=wiggle]>svg{animation:bt-react-wiggle .8s ease-in-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=spin]>svg{animation:bt-react-spin .9s cubic-bezier(.4,0,.2,1) 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=dizzy]>svg{animation:bt-react-dizzy 1.5s ease-in-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=love]>svg{animation:bt-react-love 1.3s ease-in-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=perk]>svg{animation:bt-react-perk .6s ease-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=surprise]>svg{animation:bt-react-surprise .8s ease-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-live][data-react=wake]>svg{animation:bt-react-wake .7s ease-out 1!important}
+body:not([data-bt-motion=quiet]) .bt-mark[data-sign]:is([data-state=thinking],[data-state=waiting],[data-rest=sleepy])::after{position:absolute;left:-2%;top:-4%;z-index:3;font-size:max(11px,calc(var(--bt-size,44px) * .2));font-weight:650;line-height:1;color:var(--bt-ink-2);pointer-events:none;animation:bt-mark-sign 1.8s ease-in-out infinite}
+body:not([data-bt-motion=quiet]) .bt-mark[data-sign][data-state=thinking]::after{content:'…'}
+body:not([data-bt-motion=quiet]) .bt-mark[data-sign]:is([data-state=waiting],[data-rest=sleepy])::after{content:'z'}
+}
+@keyframes bt-sleep{0%,100%{transform:rotate(5deg) scale(1.02,.97)}50%{transform:rotate(7deg) scale(.99,1.01)}}
+@keyframes bt-react-hop{0%,100%{transform:none}15%{transform:scale(1.1,.88)}50%{transform:translateY(-20%) scale(.95,1.06)}80%{transform:scale(1.07,.93)}}
+@keyframes bt-react-wiggle{0%,100%{transform:none}20%{transform:rotate(-13deg)}45%{transform:rotate(12deg)}70%{transform:rotate(-7deg)}88%{transform:rotate(4deg)}}
+@keyframes bt-react-spin{0%{transform:none}55%{transform:translateY(-16%) rotate(300deg)}80%{transform:rotate(360deg) scale(1.08,.92)}100%{transform:rotate(360deg)}}
+@keyframes bt-react-dizzy{0%,100%{transform:none}15%{transform:translateX(-7%) rotate(-11deg)}35%{transform:translateX(7%) rotate(10deg)}55%{transform:translateX(-5%) rotate(-7deg)}75%{transform:translateX(3%) rotate(4deg)}}
+@keyframes bt-react-love{0%,100%{transform:none}25%,65%{transform:scale(1.1) rotate(-4deg)}45%,85%{transform:scale(1.02) rotate(3deg)}}
+@keyframes bt-react-perk{0%,100%{transform:none}35%{transform:translateY(-10%) scale(.96,1.07)}70%{transform:scale(1.03,.97)}}
+@keyframes bt-react-surprise{0%,100%{transform:none}10%{transform:scale(1.1,.88)}35%{transform:translateY(-17%) scale(.93,1.1)}55%{transform:translateY(0) scale(1.08,.92)}75%{transform:rotate(-5deg)}90%{transform:rotate(4deg)}}
+@keyframes bt-react-wake{0%{transform:rotate(6deg) scale(1.02,.97)}40%{transform:translateY(-9%) scale(.96,1.06)}100%{transform:none}}
+@keyframes bt-mark-sign{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-12%)}}
+@media(prefers-reduced-motion:reduce){.bt-mark[data-live]>svg{animation:none!important;translate:none;rotate:none}.bt-mark-fx{display:none}}
 .bt-mark .bt-b,.bt-mark .bt-eye,.bt-mark .bt-eyes,.bt-mark .bt-gaze{transform-box:fill-box}
 .bt-mark .bt-b{transform-origin:50% 100%}
 .bt-mark .bt-eye,.bt-mark .bt-eyes{transform-origin:center}
@@ -102,9 +131,9 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
 .bt-badge{position:absolute;right:0;bottom:0;width:12px;height:12px;border-radius:50%;corner-shape:round;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px var(--bt-sidebar)}
 .bt-badge-admin{background:color-mix(in srgb,var(--bt-star) 82%,var(--bt-sidebar))}
 .bt-badge-admin svg{width:7px;height:7px}
-.bt-badge-main{right:calc(var(--bt-size,36px) * -.07);bottom:calc(var(--bt-size,36px) * -.07);width:clamp(14px,calc(var(--bt-size,36px) * .36),22px);height:clamp(14px,calc(var(--bt-size,36px) * .36),22px);border-radius:0;box-shadow:none}
-.bt-badge-main svg{width:100%;height:100%;overflow:visible}
-.bt-badge-main path{fill:var(--bt-star);stroke:var(--bt-sidebar);stroke-width:2.6;stroke-linejoin:round;paint-order:stroke}
+.bt-badge-main{right:calc(var(--bt-size,36px) * .06);bottom:calc(var(--bt-size,36px) * .06);width:clamp(14px,calc(var(--bt-size,36px) * .27),24px);height:clamp(14px,calc(var(--bt-size,36px) * .27),24px);background:var(--bt-star);box-shadow:0 0 0 2px var(--bt-sidebar)}
+.bt-badge-main svg{width:64%;height:64%;overflow:visible}
+.bt-badge-main path{fill:var(--bt-sidebar)}
 .bt-badge-alert{background:color-mix(in srgb,var(--bt-accent) 78%,var(--bt-sidebar));color:var(--bt-accent-ink,#fff);font-size:8.5px;line-height:12px;font-weight:600;font-family:var(--bt-font)}
 .bt-badge-working{background:color-mix(in srgb,var(--bt-green) 82%,var(--bt-sidebar));width:8px;height:8px;right:1px;bottom:1px}
 .bt-cluster{position:relative;display:inline-block;flex:none;line-height:0}
@@ -203,9 +232,7 @@ html[data-bt-collapsing] [class*="_frame"]:has(>[class*="_sidebarCol"]){transiti
 /* The width settings: the share of the column a bubble may take, and the flat text. */
 body{--bt-msg-w:.8;--bt-flat-w:1}
 .bt-astack{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin:0}
-.bt-bubble{max-width:min(calc(var(--bt-msg-w) * 100%),calc(100% - 82px));background:var(--bt-bubble);color:var(--bt-ink);border-radius:18px;padding:7px 12px;font-size:var(--dsh-content-font-size,14px);line-height:calc(var(--dsh-content-font-size,14px) + 10px);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty;text-autospace:normal}
-.bt-msg:not(:first-child)>.bt-msg-line>.bt-bubble{border-start-start-radius:6px}
-.bt-msg:not(:last-child)>.bt-msg-line>.bt-bubble{border-end-start-radius:6px}
+.bt-bubble{max-width:min(calc(var(--bt-msg-w) * 100%),calc(100% - 82px));background:var(--bt-bubble);color:var(--bt-ink);border-radius:22px;padding:10px 16px;font-size:var(--dsh-content-font-size,14px);line-height:calc(var(--dsh-content-font-size,14px) + 10px);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty;text-autospace:normal}
 .bt-bubble [class*="_markdown"]>*+*{margin-top:10px}
 .bt-bubble [class*="_markdown"]{color:inherit!important;font-size:inherit!important;line-height:inherit!important}
 .bt-bubble p{margin:0}
@@ -418,6 +445,7 @@ html[data-windows-titlebar]:not([data-fullscreen]) :is(.bt-pane,.bt-panel)::befo
 .bt-swatches{display:flex;flex-wrap:wrap;gap:6px}
 .bt-swatch{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px var(--bt-line-2)}
 .bt-swatch[aria-pressed=true]{border-color:var(--bt-ink)}
+.bt-swatch-bot{background:conic-gradient(#ff5eb1,#ffaf38,#00c972,#2a92fe,#a97efe,#ff5eb1);color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #0008}
 .bt-textarea{width:100%;box-sizing:border-box;min-height:120px;border:1px solid var(--bt-line);border-radius:8px;padding:8px;background:var(--bt-card);color:var(--bt-ink);font:inherit;resize:vertical}
 .bt-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .bt-kv{display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:20px;color:var(--bt-ink-2)}
@@ -491,6 +519,7 @@ body[data-ds-dark-theme] .bt-scrim{background:rgba(0,0,0,.5)}
 @media (prefers-reduced-motion:reduce){.bt-settings,.bt-scrim,.bt-settings-page>*{animation:bt-fade .12s ease-out!important}}
 .bt-settings-nav{position:relative;width:198px;flex:none;padding:16px 8px;border-right:.5px solid var(--bt-line);display:flex;flex-direction:column;gap:2px;background:var(--bt-sidebar);box-sizing:border-box}
 .bt-settings-item{position:relative;z-index:1;display:flex;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:8px;background:none;color:var(--bt-ink-2);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;transition:background-color .12s ease,color .12s ease}
+.bt-settings-group{position:relative;z-index:1;padding:14px 8px 4px;font-size:12px;color:var(--bt-ink-3)}
 .bt-settings-item:hover{color:var(--bt-ink);background:var(--bt-hover)}
 .bt-settings-item[aria-current=page]{background:var(--bt-active);color:var(--bt-ink)}
 .bt-settings-nav>.bt-thumb{left:8px;right:8px;border-radius:8px;background:var(--bt-active)}
@@ -568,6 +597,19 @@ button.bt-set-row:hover{background:var(--bt-hover)}
 .bt-connector-form{display:flex;flex-direction:column;gap:8px;padding-left:48px;animation:bt-q-in ${SPRING_SHAPE.duration}ms ${SPRING_SHAPE.easing},bt-veil-in .2s ease-out}
 .bt-connector-form-row{display:flex;align-items:center;gap:6px}
 .bt-connector-link{flex:1;font-size:12px;color:var(--bt-ink-2)}
+.bt-connector-add{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:999px;background:var(--bt-card);color:var(--bt-ink);cursor:pointer}
+.bt-connector-add:hover{background:var(--bt-hover)}
+.bt-connector-add:disabled{opacity:.5;cursor:default}
+.bt-connector-signin{padding-left:48px}
+.bt-connector-advanced{display:block;margin-top:10px;padding:0;border:0;background:none;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer}
+.bt-connector-field{display:block;min-width:0}
+.bt-connector .bt-input{background:none;border:.5px solid var(--bt-line-2)}
+.bt-connector-logo,.bt-connector-icon{display:block;width:24px;height:24px;object-fit:contain}
+.bt-connector-icon{border-radius:6px}
+.bt-connector-pick{padding:0;cursor:pointer;overflow:hidden}
+.bt-connector-new{display:flex;align-items:center;gap:8px;width:100%;padding:12px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:14px;cursor:pointer}
+.bt-connector-new:hover{color:var(--bt-ink)}
+.bt-connector-error-flush{padding-left:0}
 .bt-connector-error{padding-left:48px;font-size:12px;line-height:16px;color:var(--bt-danger)}
 
 /* Shell chrome reshaped for the team view. Selectors use stable data attributes where the
@@ -720,6 +762,7 @@ button:hover .bt-you{background:color-mix(in srgb,var(--bt-ink) 9%,var(--bt-side
 .bt-palette-empty-hint{font-size:13px;line-height:16px;color:var(--bt-ink-3)}
 @media (prefers-reduced-motion:reduce){.bt-palette{animation:bt-fade .1s ease-out}}
 .bt-account-menu{width:224px}
+.bt-account-menu:has(.bt-confirm){width:260px}
 .bt-account{flex:none;width:36px;height:36px;border:0;padding:0;background:none;border-radius:50%;cursor:pointer;display:inline-flex}
 .bt-account:hover .bt-you,.bt-account[aria-expanded=true] .bt-you{background:color-mix(in srgb,var(--bt-ink) 9%,var(--bt-sidebar))}
 /* Popover keyframes move translate and scale, which compose with a transform the popover
@@ -1021,9 +1064,9 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
 }
 @keyframes bt-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bt-fade-out{from{opacity:1}to{opacity:0}}
-[data-composer-card]{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;align-items:center!important;gap:0!important;min-height:44px!important;border-radius:22px!important;padding:7.5px!important;box-sizing:border-box;background:var(--bt-main)!important;border:.5px solid var(--bt-line-2)!important;box-shadow:0 2px 8px -1px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03),0 0 0 1px rgba(228,228,228,.04)!important;transition:border-color .15s ease,background-color .15s ease,${spring(SPRING_SHAPE, 'border-radius')}!important}
+[data-composer-card]{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;align-items:center!important;gap:0!important;min-height:44px!important;border-radius:999px!important;padding:7.5px!important;box-sizing:border-box;background:var(--bt-main)!important;border:.5px solid var(--bt-line-2)!important;box-shadow:0 2px 8px -1px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03),0 0 0 1px rgba(228,228,228,.04)!important;transition:border-color .15s ease,background-color .15s ease,${spring(SPRING_SHAPE, 'border-radius')}!important}
 [data-composer-card]:hover,[data-composer-card]:focus-within{border-color:color-mix(in srgb,var(--bt-ink) 30%,transparent)!important}
-[data-composer-card]:has(> [data-slot="conversation.input.attachments"] *),[data-composer-card]:has([data-composer-input] br + *),[data-composer-card]:has([data-composer-input] > :nth-child(2)){border-radius:18px!important}
+[data-composer-card]:has(> [data-slot="conversation.input.attachments"] *),[data-composer-card]:has([data-composer-input] br + *),[data-composer-card]:has([data-composer-input] > :nth-child(2)){border-radius:24px!important}
 [class*="_root"]:has(> [data-composer-card]){padding:0 11px 13px 16px!important}
 [class*="_root"]:has(> [data-composer-card])>[data-composer-card]{max-width:min(992px,100%)!important}
 [data-composer-card]>[class*="_row"]{display:contents!important}
@@ -1090,7 +1133,7 @@ div:has(> nav [class*="_marks"]){display:none!important}
 /* Every user-side bubble (sent, steering mid-turn, not yet admitted, question replies)
    takes its surface and its text from the one --bt-user pair: a skin that repaints
    the host's bubble surface alone would otherwise leave the text unreadable. */
-[class*="_userRow"] [class*="_bubble"],[data-chat-flow-kind=question-reply] [class*="_bubble"],[data-chat-flow-kind=command-input] [class*="_bubble"]{background:var(--bt-user)!important;color:var(--bt-user-ink)!important;border-radius:18px!important;padding:7px 12px!important;font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(var(--dsh-content-font-size,14px) + 8px)!important}
+[class*="_userRow"] [class*="_bubble"],[data-chat-flow-kind=question-reply] [class*="_bubble"],[data-chat-flow-kind=command-input] [class*="_bubble"]{background:var(--bt-user)!important;color:var(--bt-user-ink)!important;border-radius:22px!important;padding:8px 16px!important;font-size:var(--dsh-content-font-size,14px)!important;line-height:calc(var(--dsh-content-font-size,14px) + 8px)!important}
 [class*="_userRow"] [class*="_bubble"] [class*="_markdown"],[class*="_userRow"] [class*="_bubble"] a{color:inherit}
 /* Sent messages get the hover toolbar below; steering and unsent bubbles keep none. */
 [class*="_userRow"] [class*="_actions"]{display:none!important}
@@ -1142,7 +1185,7 @@ div:has(> nav [class*="_marks"]){display:none!important}
 .bt-earlier-top{display:flex;justify-content:center;align-items:center;height:34px;flex:none}
 .bt-earlier-top .bt-soft{height:28px;font-size:12px;padding:0 12px}
 .bt-urow{display:flex;justify-content:flex-end}
-.bt-ububble{max-width:calc(var(--bt-msg-w) * 100%);background:var(--bt-user);color:var(--bt-user-ink);border-radius:18px;padding:7px 12px;font-size:14px;line-height:24px;box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty;text-autospace:normal}
+.bt-ububble{max-width:calc(var(--bt-msg-w) * 100%);background:var(--bt-user);color:var(--bt-user-ink);border-radius:22px;padding:8px 16px;font-size:14px;line-height:24px;box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty;text-autospace:normal}
 .bt-ububble [class*="_markdown"],.bt-ububble a{color:inherit!important}
 .bt-ububble p{margin:0;line-height:24px}
 .bt-uimages{display:block;font-size:12px;opacity:.7}

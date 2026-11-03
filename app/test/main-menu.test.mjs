@@ -1,5 +1,5 @@
-// The application menu of macOS: the tray's Quit is the one ordinary way out, so the menu
-// has none. Only when the tray is not there does the menu carry one.
+// The application menu of macOS carries the ordinary Quit with Cmd+Q, and the tray has one
+// too. Both go through the shell's quit so the Host stops on the way out.
 import assert from 'node:assert/strict'
 import { before, test } from 'node:test'
 import { app, state } from './helpers/fake-electron.mjs'
@@ -13,15 +13,15 @@ Object.defineProperty(process, 'platform', { value: 'darwin' })
 
 before(async () => { await startApp({ packaged: false }) })
 
-test('the application menu of macOS has no Quit', async () => {
+test('the application menu of macOS can quit with Cmd+Q', async () => {
   await waitFor(() => state.menus.length > 0, 'set the menu')
   await waitFor(() => state.tray !== undefined, 'build the tray')
   const menu = state.menus.at(-1).template
   const items = menu[0].submenu
-  assert.equal(menu[0].label, 'Jarvis', 'the menu of the app')
-  assert.equal(items.some(item => item.role === 'quit'), false, 'no Quit of its own')
-  assert.equal(items.some(item => item.accelerator === 'CmdOrCtrl+Q' || item.accelerator === 'Command+Q'), false, 'no shortcut for it')
-  assert.equal(items.some(item => item.label === 'Quit Jarvis'), false, 'no entry for it')
+  assert.equal(menu[0].label, 'Grow Bot', 'the menu of the app')
+  const quit = items.find(item => item.label === 'Quit Grow Bot')
+  assert.ok(quit, 'the menu carries Quit Grow Bot')
+  assert.equal(quit.accelerator, 'CmdOrCtrl+Q', 'Cmd+Q quits the app')
   // The menu keeps the rest of macOS: about, services and the hiding of the app.
   const roles = items.map(item => item.role).filter(Boolean)
   for (const role of ['about', 'services', 'hide', 'hideOthers', 'unhide']) assert.ok(roles.includes(role), `the menu keeps ${role}`)

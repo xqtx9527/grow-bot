@@ -279,14 +279,14 @@ function ModelKeyCard({ model, actions }) {
 }
 
 // Where the providers are set up: the window's own Models page, else DSH's settings.
-const manageModels = actions => actions.openModels ?? actions.openHarnessSettings
+const manageModels = actions => actions.openModels ?? (actions.openSettings ? () => actions.openSettings('models') : actions.openHarnessSettings)
 
 // Ways to get a first model. The DeepSeek sign-in exists only where the shell carries
 // its account plugin (the Desktop); the API key and custom models use the shell's
 // own editors.
 function setupChoices(actions) {
   return [
-    actions.canSignIn?.() ? [t('Sign in to DeepSeek'), () => actions.signIn()] : null,
+    actions.canSignIn?.() ? [t('Sign in'), () => actions.signIn()] : null,
     actions.openHarnessOnboarding ? [t('Enter a DeepSeek API key'), () => actions.openHarnessOnboarding('deepseek-official')] : null,
     actions.openHarnessSettings ? [t('Open settings to set up a custom model'), actions.openHarnessSettings] : null,
   ].filter(Boolean)

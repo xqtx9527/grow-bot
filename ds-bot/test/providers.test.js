@@ -113,10 +113,10 @@ test('a saved API key goes to the provider\'s reference and frees its models', a
   await assert.rejects(rt.setProviderKey('deepseek-account', 'sk-test'), /deepseek-account takes no API key here/)
 })
 
-test('a key set outside DS Bot is not overwritten or removed', async () => {
+test('a key set outside Grow Bot is not overwritten or removed', async () => {
   const { rt, writes } = dsh({ keys: { DEEPSEEK_API_KEY: 'k' }, readOnly: ['DEEPSEEK_API_KEY'] })
-  await assert.rejects(rt.setProviderKey('deepseek-official', 'sk-test'), /set outside DS Bot/)
-  await assert.rejects(rt.clearProviderKey('deepseek-official'), /set outside DS Bot/)
+  await assert.rejects(rt.setProviderKey('deepseek-official', 'sk-test'), /set outside Grow Bot/)
+  await assert.rejects(rt.clearProviderKey('deepseek-official'), /set outside Grow Bot/)
   assert.deepEqual(writes, [])
   assert.deepEqual(row(await rt.providersView(), 'deepseek-official').key, { configured: true, writable: false })
 })
@@ -221,4 +221,130 @@ test('an API key is what an HTTP header carries, without a NAME= or quotes', () 
 test('a route\'s key reference follows DSH\'s own Models page', () => {
   assert.equal(keyRefFor('moonshotai'), 'MOONSHOTAI_API_KEY')
   assert.equal(keyRefFor('my-gateway2'), 'MY_GATEWAY2_API_KEY')
+})
+
+test('ChatGPT authorization creates the route and never exposes the credential', async () => {
+  const { rt, writes } = dsh({ catalog: { 'openai-codex': ['gpt-test'] } })
+  const get = rt.ctx.get
+  let connected = false
+  let interaction
+  const authorization = {
+    describe: () => ({ methods: [{ id: 'oauth' }] }),
+    begin: async request => { interaction = request.interaction; interaction.notify({ message: 'Open browser', url: 'https://example.com/login' }); await interaction.prompt({ kind: 'text', message: 'Paste code' }); connected = true; return { status: 'authorized' } },
+    cancel: () => {},
+  }
+  const credentials = { ...get('credentials'), describeRecord: async () => ({ configured: connected }), deleteRecord: async () => { connected = false } }
+  rt.ctx.get = name => name === 'authorization' ? authorization : name === 'credentials' ? credentials : get(name)
+  await rt.accountStart()
+  await new Promise(resolve => setImmediate(resolve))
+  const waiting = await rt.accountStatus()
+  assert.equal(waiting.attempt.prompt.message, 'Paste code')
+  rt.accountAnswer('test-code')
+  await new Promise(resolve => setImmediate(resolve))
+  const status = await rt.accountStatus()
+  assert.equal(status.connected, true)
+  assert.equal(status.attempt.status, 'authorized')
+  assert.ok(writes.some(([ns]) => ns === 'llm-pi-ai'))
+  assert.ok(!JSON.stringify(status).includes('test-code'))
+  await rt.accountSignOut()
+  assert.equal((await rt.accountStatus()).connected, false)
+})
+
+test('default model selection validates the catalog and persists the chosen effort', async () => {
+  const { rt } = dsh({ keys: { DEEPSEEK_API_KEY: 'test' } })
+  const get = rt.ctx.get
+  let selection = { provider: 'deepseek-official', model: 'deepseek-flash' }
+  const defaults = { currentSelection: () => selection, saveSelection: async value => { selection = value } }
+  rt.ctx.get = name => name === 'agentDefaultModel' ? defaults : get(name)
+  rt.reasoningOf = async () => ({ efforts: [{ id: 'high', name: 'High' }] })
+  rt.resolveEffort = async (_ref, effort) => { if (effort !== 'high') throw new Error('invalid'); return effort }
+  const view = await rt.setDefaultModel({ ref: 'deepseek-official/deepseek-flash', effort: 'high' })
+  assert.equal(view.effort, 'high')
+  assert.equal(selection.reasoningEffort, 'high')
+  await assert.rejects(rt.setDefaultModel({ ref: 'unknown/model' }), /not available/)
+  await assert.rejects(rt.setDefaultModel({ ref: 'deepseek-official/deepseek-flash', effort: 'invalid' }), /invalid/)
+})
+
+test('Claude and Grok authorization stay isolated and reject unknown providers', async () => {
+  const { rt, writes } = dsh({ catalog: { anthropic: ['claude-a'], xai: ['grok-a'] } })
+  const get = rt.ctx.get
+  const connected = new Set()
+  const calls = []
+  const authorization = {
+    describe: key => ({ key, methods: [{ id: 'oauth' }] }),
+    begin: async ({ key, method }) => { calls.push([key, method]); connected.add(key); return { status: 'authorized' } },
+    cancel: key => calls.push(['cancel', key]),
+  }
+  const credentials = { ...get('credentials'), describeRecord: async key => ({ configured: connected.has(key) }), deleteRecord: async key => connected.delete(key) }
+  rt.ctx.get = name => name === 'authorization' ? authorization : name === 'credentials' ? credentials : get(name)
+  await rt.accountStart('anthropic')
+  await new Promise(resolve => setImmediate(resolve))
+  await rt.accountStart('xai')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal((await rt.accountStatus('anthropic')).connected, true)
+  assert.equal((await rt.accountStatus('xai')).connected, true)
+  assert.deepEqual(calls.slice(0, 2), [['llm-pi-ai/anthropic', 'oauth'], ['llm-pi-ai/xai', 'oauth']])
+  assert.equal(writes.filter(([ns]) => ns === 'llm-pi-ai').length, 2)
+  await rt.accountSignOut('anthropic')
+  assert.equal((await rt.accountStatus('anthropic')).connected, false)
+  assert.equal((await rt.accountStatus('xai')).connected, true)
+  await assert.rejects(rt.accountStart('../other'), /Unknown account provider/)
+})
+
+test('cancelling account sign-in clears prompts and never creates a route', async () => {
+  const { rt, writes } = dsh({ catalog: { anthropic: ['claude-a'] } })
+  const get = rt.ctx.get
+  let cancelled = ''
+  const authorization = {
+    describe: () => ({ methods: [{ id: 'oauth' }] }),
+    begin: ({ interaction }) => interaction.prompt({ kind: 'text', message: 'Code' }).then(() => ({ status: 'authorized' })),
+    cancel: key => { cancelled = key },
+  }
+  const credentials = { ...get('credentials'), describeRecord: async () => ({ configured: false }) }
+  rt.ctx.get = name => name === 'authorization' ? authorization : name === 'credentials' ? credentials : get(name)
+  await rt.accountStart('anthropic')
+  assert.equal((await rt.accountStatus('anthropic')).attempt.prompt.message, 'Code')
+  rt.accountCancel('anthropic')
+  await new Promise(resolve => setImmediate(resolve))
+  const status = await rt.accountStatus('anthropic')
+  assert.equal(status.attempt.status, 'cancelled')
+  assert.equal(status.attempt.prompt, null)
+  assert.equal(cancelled, 'llm-pi-ai/anthropic')
+  assert.equal(writes.length, 0)
+})
+
+test('late authorization completion cannot re-enable a cancelled route', async () => {
+  const { rt, writes } = dsh({ catalog: { xai: ['grok-a'] } })
+  const get = rt.ctx.get
+  let finish
+  const authorization = {
+    describe: () => ({ methods: [{ id: 'oauth' }] }),
+    begin: () => new Promise(resolve => { finish = resolve }),
+    cancel: () => {},
+  }
+  const credentials = { ...get('credentials'), describeRecord: async () => ({ configured: false }) }
+  rt.ctx.get = name => name === 'authorization' ? authorization : name === 'credentials' ? credentials : get(name)
+  await rt.accountStart('xai')
+  rt.accountCancel('xai')
+  finish({ status: 'authorized' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal((await rt.accountStatus('xai')).attempt.status, 'cancelled')
+  assert.equal(writes.length, 0)
+})
+
+test('an account provider can add an API key without replacing its route', async () => {
+  const { rt, store } = dsh({ user: { providers: { anthropic: {} } }, catalog: { anthropic: ['claude-a'] } })
+  await rt.setProviderKey('anthropic', 'test-key')
+  assert.equal(store.ANTHROPIC_API_KEY, 'test-key')
+  assert.equal((await rt.providersView()).providers.find(provider => provider.id === 'anthropic').key.configured, true)
+})
+
+test('removing an API key restores an existing account grant', async () => {
+  const { rt, store } = dsh({ keys: { ANTHROPIC_API_KEY: 'test-key' }, user: { providers: { anthropic: { apiKeyEnv: 'ANTHROPIC_API_KEY' } } }, catalog: { anthropic: ['claude-a'] } })
+  const get = rt.ctx.get
+  const credentials = { ...get('credentials'), describeRecord: async () => ({ configured: true, kind: 'grant' }) }
+  rt.ctx.get = name => name === 'credentials' ? credentials : get(name)
+  await rt.clearProviderKey('anthropic')
+  assert.equal(store.ANTHROPIC_API_KEY, undefined)
+  assert.equal((await rt.providersView()).providers.find(provider => provider.id === 'anthropic').key, null)
 })

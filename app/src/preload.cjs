@@ -5,10 +5,39 @@
 // window does not have.
 const { contextBridge, ipcRenderer } = require('electron')
 
+// DSH's web front end paints its own boot splash (the wordmark and a "Loading plugins…"
+// hint) before the Bot UI mounts. Relabel it here, in the page, so the window never shows
+// the engine's name; the engine itself is left untouched.
+function rebrandBootSplash() {
+  const root = document.querySelector('[data-dsh-boot]')
+  if (root === null) return
+  for (const element of root.querySelectorAll('*')) {
+    if (element.children.length > 0) continue
+    if (element.textContent === 'HARNESS') element.textContent = 'Grow Bot'
+    else if (element.textContent === 'Loading plugins…' || element.textContent === 'Loading plugins...') element.textContent = '正在启动…'
+  }
+}
+if (typeof document !== 'undefined') {
+  const observer = new MutationObserver(rebrandBootSplash)
+  const start = () => {
+    rebrandBootSplash()
+    observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true })
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true })
+  else start()
+}
+
+// macOS has no marker from DSH here (see above), so the page's drag band hangs on this one.
+// A preload runs before the document root exists.
+if (process.platform === 'darwin' && typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.macTitlebar = '' }, { once: true })
+}
+
 const host = process.argv.find(value => value.startsWith('--ds-bot-origin='))?.slice('--ds-bot-origin='.length)
 if (host !== undefined && location.origin === host) {
   // DS Bot's settings show and move the app's data location through this.
   contextBridge.exposeInMainWorld('dsBotApp', {
+    netdiskLogin: () => ipcRenderer.invoke('ds-bot:netdisk-login'),
     dataLocation: () => ipcRenderer.invoke('ds-bot:data-location'),
     moveData: (workspace) => ipcRenderer.invoke('ds-bot:move-data', typeof workspace === 'string' ? workspace : undefined),
     teamWorkspaceChanged: (path) => { ipcRenderer.send('ds-bot:team-workspace', String(path)) },
@@ -43,13 +72,13 @@ function browserBridge() {
   const viewListeners = new Set()
   ipcRenderer.on('ds-bot:browser-view-changed', (_event, change) => {
     for (const listener of [...viewListeners]) {
-      try { listener(change) } catch (error) { console.error('Jarvis: a browser view listener failed', error) }
+      try { listener(change) } catch (error) { console.error('Grow Bot: a browser view listener failed', error) }
     }
   })
   ipcRenderer.on('ds-bot:browser-open-requested', (_event, request) => {
     if (typeof request?.lease !== 'string' || typeof request.url !== 'string') return
     for (const listener of [...(listeners.get(request.lease) ?? [])]) {
-      try { listener(request.url) } catch (error) { console.error('Jarvis: a browser link handler failed', error) }
+      try { listener(request.url) } catch (error) { console.error('Grow Bot: a browser link handler failed', error) }
     }
   })
   return {
@@ -91,7 +120,7 @@ function updatesBridge() {
   const listeners = new Set()
   ipcRenderer.on('ds-bot:app-update-changed', (_event, state) => {
     for (const listener of [...listeners]) {
-      try { listener(state) } catch (error) { console.error('Jarvis: an update state handler failed', error) }
+      try { listener(state) } catch (error) { console.error('Grow Bot: an update state handler failed', error) }
     }
   })
   return {

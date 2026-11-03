@@ -4,14 +4,11 @@ import { createElement as h, useEffect, useState } from 'react'
 import { GitHubMark } from './connectors.js'
 import { whenText } from './feedback.js'
 import { dateLocale, hostText, t } from './i18n.js'
-import { StarLineIcon } from './icons.js'
+import { GrowBotLogo, StarLineIcon } from './icons.js'
 import { SPRING_POP } from './motion.js'
-import { BotMark } from './mark.js'
-import { MAIN_LOOK } from './characters.js'
 import { showsDshRow } from './dsh-offer.js'
 
 // The length of the mark's `done` hop (bt-done in styles.js).
-const CHEER_MS = 1800
 
 const starCount = count => new Intl.NumberFormat(dateLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(count)
 
@@ -58,22 +55,68 @@ function dshHint(dsh, shown) {
 
 const linkProps = href => ({ className: 'bt-soft bt-soft-sm bt-about-link', href, target: '_blank', rel: 'noopener noreferrer' })
 
-// Set this to the user's repository after it has been identified.
-const JARVIS_REPOSITORY = 'https://github.com/xqtx9527/nomi'
-
-export function AboutPage({ Section, Row }) {
-  const repo = JARVIS_REPOSITORY
+export function AboutPage({ useUpdate, actions, run, Section, Row }) {
+  const update = useUpdate(value => value) ?? {}
+  const [checking, setChecking] = useState(false)
+  const [stars, setStars] = useState(null)
+  useEffect(() => {
+    let live = true
+    actions.repoStars().then((count) => { if (live && Number.isInteger(count)) setStars(count) }, () => {})
+    return () => { live = false }
+  }, [])
+  // The mark hops when the page opens, after a check, and when an update is in.
+  const check = () => {
+    setChecking(true)
+    void run(actions.checkUpdate()).then(() => { setChecking(false) })
+  }
+  const phase = update.phase ?? 'idle'
+  const dsh = update.dsh
+  const dshPhase = dsh?.phase ?? 'idle'
+  // Same rule as the sidebar card.
+  const dshNew = showsDshRow(dsh, update.app)
+  const dshShown = dshNew && dsh.available
+  const ownRow = update.source === 'app' ? ownAppRow(update.ownApp) : null
+  const ownControl = ownRow?.button === 'restart'
+    ? h('button', { type: 'button', className: 'bt-fb-primary', onClick: () => run(actions.installOwnApp()) }, t('Restart to update'))
+    : ownRow?.button === 'check'
+      ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => run(actions.checkOwnApp()) }, t('Check for updates'))
+      : ownRow?.button === 'open'
+        ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => run(actions.openOwnApp()) }, t('Download'))
+        : null
+  const botControl = ownRow !== null ? ownControl
+    : phase === 'installed' || phase === 'updated' || update.source === 'app' ? null
+    : update.available || phase === 'installing'
+      ? h('button', { type: 'button', className: 'bt-fb-primary', disabled: phase === 'installing', onClick: () => run(actions.installUpdate()) },
+          phase === 'installing' ? t('Updating…') : phase === 'failed' ? t('Try again') : t('Update'))
+      : h('button', { type: 'button', className: 'bt-soft bt-soft-sm', disabled: checking || update.enabled === false, onClick: check }, checking ? t('Checking…') : t('Check for updates'))
+  const dshControl = !dshNew || dshPhase === 'installed' ? null
+    : dsh.kind === 'app'
+      ? dsh.available ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => run(actions.openAppUpdates(dsh.verified)) }, t('Open updates')) : null
+      : dsh.available || dshPhase !== 'idle'
+        ? h('button', { type: 'button', className: 'bt-fb-primary', disabled: dshPhase === 'installing', onClick: () => run(actions.installDshUpdate()) },
+            dshPhase === 'installing' ? t('Updating…') : dshPhase === 'failed' ? t('Try again') : t('Update'))
+        : null
+  const repo = update.repoUrl
   return [
     h('div', { key: 'hero', className: 'bt-about-hero' },
-      h('span', { className: 'bt-about-mark' }, h(BotMark, { look: { shape: 'blob-circle', color: 'black' }, bot: { id: 'about' }, size: 52, live: true })),
+      h('span', { className: 'bt-about-mark' }, h(GrowBotLogo, { size: 52 })),
       h('div', { className: 'bt-about-copy' },
-        h('span', { className: 'bt-about-name' }, 'Nomi'),
-        h('span', { className: 'bt-about-version' }, t('Version {version}', { version: '0.1' })))),
-    h(Section, { key: 'project', title: t('Project') },
-      repo ? h(Row, { label: t('Source code'), hint: repo.replace(/^https:\/\//, '') }, h('a', linkProps(repo), h(GitHubMark), t('Open')))
-        : h(Row, { label: 'GitHub', hint: t('Repository not connected') }),
-      h(Row, { label: t('Release notes') }, h('a', linkProps(`${repo}/releases`), t('Open'))),
-      h(Row, { label: t('Report a problem') }, h('a', linkProps(`${repo}/issues`), t('Open')))),
+        h('span', { className: 'bt-about-name' }, 'Grow Bot'),
+        update.current ? h('span', { className: 'bt-about-version' }, t('Version {version}', { version: update.current })) : null),
+      repo ? h('a', {
+        className: 'bt-star', href: repo, target: '_blank', rel: 'noopener noreferrer', title: t('Star DS Bot on GitHub'),
+        'aria-label': stars === null ? t('Star DS Bot on GitHub') : `${t('Star DS Bot on GitHub')} · ${t('{count} stars', { count: stars })}`,
+      },
+      h('span', { className: 'bt-star-main' }, h('span', { className: 'bt-star-icon' }, h(StarLineIcon)), 'Star'),
+      stars === null ? null : h('span', { className: 'bt-star-count' }, starCount(stars))) : null),
+    repo ? h('p', { key: 'ask', className: 'bt-about-ask' }, t('If DS Bot helps you, a star on GitHub helps more people find it.')) : null,
+    h(Section, { key: 'updates', title: t('Updates') },
+      h(Row, { label: 'Grow Bot', hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? h('a', linkProps(update.notesUrl), t("What's new")) : null),
+      dsh?.current ? h(Row, { label: t('Engine'), hint: dshHint(dsh, dshShown) }, dshControl) : null),
+    h(Section, { key: 'links', title: t('Links') },
+      repo ? h(Row, { label: t('Source code'), hint: repo.replace(/^https:\/\//, '') }, h('a', linkProps(repo), h(GitHubMark), t('Open'))) : null,
+      update.notesUrl ? h(Row, { label: t('Release notes') }, h('a', linkProps(update.notesUrl), t('Open'))) : null,
+      h(Row, { label: t('Report a problem') }, h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => actions.openSettings('feedback') }, t('Open')))),
   ]
 }
 
@@ -81,9 +124,6 @@ export const ABOUT_CSS = `
 .bt-about-hero{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card)}
 .bt-about-mark{flex:none;display:inline-flex;position:relative}
 .bt-about-mark::before{content:'';position:absolute;inset:-20%;border-radius:50%}
-body:not([data-bt-motion=quiet]) .bt-about-mark:hover .bt-mark[data-live][data-state=idle]:not(.bt-mark-poke) .bt-b{rotate:8deg;translate:5% -1%;animation:bt-nuzzle .78s ease-in-out .32s infinite}
-body:not([data-bt-motion=quiet]) .bt-about-mark:hover .bt-mark[data-live][data-state=idle] .bt-eye{scale:1 0;animation:none}
-body:not([data-bt-motion=quiet]) .bt-about-mark:hover .bt-mark[data-live][data-state=idle] .bt-eye-happy{opacity:1;transition-delay:.1s}
 .bt-about-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .bt-about-name{font-size:16px;line-height:22px;font-weight:600}
 .bt-about-version{font-size:12px;line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}

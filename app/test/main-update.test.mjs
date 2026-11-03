@@ -11,7 +11,7 @@ import { installHooks } from './helpers/register.mjs'
 await installHooks()
 
 // This personal build turns the upstream update feed off; the test turns it back on.
-process.env.JARVIS_ALLOW_UPSTREAM_UPDATES = '1'
+process.env.GROW_BOT_ALLOW_UPSTREAM_UPDATES = '1'
 
 // Exercise the Windows installer on every runner; macOS and Linux debs open a release page.
 Object.defineProperty(process, 'platform', { value: 'win32' })

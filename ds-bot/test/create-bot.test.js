@@ -23,7 +23,8 @@ test('the payload carries the look, the chosen model, and the brief', () => {
 
 test('the suggested name skips taken names', () => {
   const roster = { bots: [{ name: 'New Bot' }, { name: 'Kimi' }] }
-  assert.equal(freshBotName(roster), 'New Bot 2')
+  assert.equal(freshBotName(roster), 'Mochi')
+  assert.equal(freshBotName({ bots: [{ name: 'Mochi' }, { name: 'Momo' }] }), 'Pip')
   assert.equal(freshBotName(roster, 'Kimi'), 'Kimi 2')
   assert.equal(freshBotName(roster, 'Writer'), 'Writer')
 })

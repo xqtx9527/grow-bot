@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -120,7 +120,7 @@ test('CDP endpoint creates and loads an initial view for a Bot with no tabs', as
 })
 
 test('CDP relay limits targets and created tabs to the token Bot', async t => {
-  const { manager, views } = fixture()
+  const { manager } = fixture()
   t.after(() => manager.dispose())
   manager.create('a')
   manager.create('b')

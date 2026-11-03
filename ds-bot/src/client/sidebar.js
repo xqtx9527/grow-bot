@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { FishLogo } from './dsh-primitives.js'
 import { isMainOf } from './sources.js'
 import { currentPart, previewOf, relativeShort } from './text.js'
-import { PlusIcon, SearchIcon, SidebarIcon, GaugeIcon, ClockIcon, GearIcon, PinMarkIcon, ConnectorIcon, CloudDownloadIcon, SignOutIcon } from './icons.js'
+import { PlusIcon, SearchIcon, SidebarIcon, GaugeIcon, ClockIcon, GearIcon, PinMarkIcon, ConnectorIcon, CloudDownloadIcon, SignOutIcon, ConnectorsIcon, GrowBotLogo } from './icons.js'
 import { MAIN_LOOK } from './characters.js'
 import { botState, BotMark, BotAvatar, RoomAvatar } from './mark.js'
 import { reducedMotion } from './activity-row.js'
@@ -62,7 +62,7 @@ function MainTile({ bot, roster, actions, useSessionStatus, useActivity, useWork
   const state = botState(running, doing, roster.questions?.[part] !== undefined || approval)
   return h('div', { className: 'bt-tile-wrap' },
     h('button', { type: 'button', className: 'bt-tile', 'aria-label': bot.name, onClick: () => actions.openSession(bot.id) },
-      h(BotAvatar, { bot, size: 56, state, main: true, gaze: true })),
+      h(BotAvatar, { bot, size: 88, state, main: true, gaze: true })),
     h('span', { className: 'bt-tile-name' }, bot.name))
 }
 
@@ -81,24 +81,25 @@ function BotRow({ bot, roster, actions, useSessions, useSessionStatus, useSessio
   // Work in a group runs in a Session of its own, so the Bot's chat stays idle meanwhile.
   const groups = workKeys(useGroupWork(useWork, rooms => Object.entries(rooms).flatMap(([roomId, entries]) => entries.filter(entry => entry.botId === id).map(entry => ({ id: roomId, ...doingOf(entry) })))))
   const away = !running && groups.length > 0
-  const state = botState(running || away, doing, alert)
+  const waits = workKeys(useWork ? useWork(work => JSON.stringify(work.waiting?.[id] ?? null)) : 'null')
+  const hasWaits = (waits?.bots?.length ?? 0) + (waits?.rooms?.length ?? 0) > 0
+  const state = botState(running || away, doing ?? (away ? groups[0] : hasWaits ? 'waiting' : undefined), alert)
   // A Bot running in its own chat previews what it is doing, like a group's row.
   const runningLine = running && doing ? doingLine(doing) : null
   const awayLine = away ? workLine(roster.roomsById[groups[0].id]?.name ?? t('a group chat'), groups[0], groups.length - 1) : null
-  const waits = workKeys(useWork ? useWork(work => JSON.stringify(work.waiting?.[id] ?? null)) : 'null')
   const waitsFor = state === 'waiting' ? waitingFor(roster, waits) : ''
   if (bot.hidden && !active && !main) return null
   const onContextMenu = (event) => {
     event.preventDefault()
     actions.openMenu({ kind: 'bot', id, x: event.clientX, y: event.clientY })
   }
-  const pinned = bot.pinned === true && !tile
+  const pinned = bot.pinned === true && !main
   const label = [bot.name, main ? t('Main Bot') : '', pinned ? t('Pinned') : '', running || away ? t('Working') : '', waitsFor, approval ? t('Waiting for your approval') : alert ? t('Waiting for your answer') : '', unread ? t('Unread activity') : ''].filter(Boolean).join(', ')
   return h('button', {
     type: 'button', className: 'bt-row', 'aria-label': label, 'aria-current': active ? 'page' : undefined,
     'data-bot-id': id, title: wide ? undefined : bot.name, onMouseEnter: wide ? nameIfCut : undefined, onClick: () => actions.openSession(id), onContextMenu,
   },
-  h(BotAvatar, { bot, size: wide ? 40 : 44, state, main, gaze: true }),
+  h(BotAvatar, { bot, size: wide ? 52 : 44, state, main, gaze: true }),
   pinned && !wide ? h(PinMark) : null,
   wide ? h('span', { className: 'bt-row-body' },
     h('span', { className: 'bt-row-name' }, h('span', { className: 'bt-row-title' }, bot.name), pinned ? h(PinMark) : null),
@@ -129,7 +130,7 @@ function RoomRow({ room, roster, actions, useSessions, useSessionStatus, useSess
     'data-room-id': id, title: wide ? undefined : room.name, onMouseEnter: wide ? nameIfCut : undefined, onClick: () => actions.openSession(id),
     onContextMenu: (event) => { event.preventDefault(); actions.openMenu({ kind: 'room', id, x: event.clientX, y: event.clientY }) },
   },
-  h(RoomAvatar, { room, roster, size: wide ? 40 : 44 }),
+  h(RoomAvatar, { room, roster, size: wide ? 52 : 44 }),
   pinned && !wide ? h(PinMark) : null,
   wide ? h('span', { className: 'bt-row-body' },
     h('span', { className: 'bt-row-name' }, h('span', { className: 'bt-row-title' }, room.name), pinned ? h(PinMark) : null),
@@ -674,6 +675,21 @@ function pressesShellShortcut(event, id) {
 const NO_SUBSCRIBE = () => () => {}
 const NO_SNAPSHOT = () => null
 
+// An account with no picture of its own wears a plain gray Bot.
+const NO_PICTURE_LOOK = Object.freeze({ shape: 'blob-circle', color: 'gray' })
+
+// The account plugin fetches the profile at launch; until that first answer the
+// footer would show an empty circle and "Account". Keep the last known name and
+// avatar so the footer stays whole while the fetch runs.
+const PROFILE_CACHE_KEY = 'bt-account-profile'
+function readProfileCache() {
+  try {
+    const raw = globalThis.localStorage?.getItem(PROFILE_CACHE_KEY)
+    const value = raw ? JSON.parse(raw) : null
+    return value && (typeof value.name === 'string' || typeof value.avatar === 'string') ? value : null
+  } catch { return null }
+}
+
 // The footer avatar opens an account menu above itself, with Bot settings as one
 // entry. Shell panels hidden from the Bot sidebar (plugins, automation) live here too.
 // `seat` is the shell's settings.launcher seat: at priority -10 the whale wins it
@@ -721,7 +737,52 @@ export function AccountLauncher({ seat = true, settingsOpen, openSettings, openO
   const signedIn = signIn !== null && typeof ops.signOut === 'function' && account?.view?.status === 'credential-stored'
   const avatar = account?.avatar
   const userProfile = account?.details?.profile
-  const name = userProfile?.status === 'ready' ? (userProfile.value.name ?? userProfile.value.contact) : undefined
+  const freshName = userProfile?.status === 'ready' ? (userProfile.value.name ?? userProfile.value.contact) : undefined
+  const freshAvatar = avatar?.status === 'ready' && typeof avatar.url === 'string' ? avatar.url : undefined
+  // At launch the entry and the account stream are not there yet; only a view that
+  // arrived and says otherwise means signed out, and only that may drop the cache.
+  const signedOut = account?.view !== undefined && account?.view !== null && !signedIn
+  const [cachedProfile, setCachedProfile] = useState(readProfileCache)
+  useEffect(() => {
+    if (signedOut) {
+      setCachedProfile(null)
+      try { globalThis.localStorage?.removeItem(PROFILE_CACHE_KEY) } catch { /* storage may be closed */ }
+      return
+    }
+    if (!signedIn || (freshName === undefined && freshAvatar === undefined)) return
+    setCachedProfile(previous => {
+      const next = { name: freshName ?? previous?.name, avatar: freshAvatar ?? previous?.avatar }
+      try { globalThis.localStorage?.setItem(PROFILE_CACHE_KEY, JSON.stringify(next)) } catch { /* storage may be closed */ }
+      return next
+    })
+  }, [signedIn, signedOut, freshName, freshAvatar])
+  const shownName = freshName ?? (signedOut ? undefined : cachedProfile?.name)
+  // A remembered address can stop working; an empty circle beats a broken image.
+  const [brokenAvatar, setBrokenAvatar] = useState('')
+  const knownAvatar = freshAvatar ?? (signedOut ? undefined : cachedProfile?.avatar)
+  const shownAvatar = knownAvatar === brokenAvatar ? undefined : knownAvatar
+  // The shell's account plugin only re-reads the profile when its settings open, and its
+  // first read can land before the account stream says "signed in". Read it while it is
+  // missing, a few times at most, and once more on opening the menu; never when signed out.
+  const refreshAccount = ops.refreshAccount
+  const readProfile = signedIn && typeof refreshAccount === 'function' ? refreshAccount : null
+  useEffect(() => {
+    if (readProfile === null || freshName !== undefined || freshAvatar !== undefined) return undefined
+    let attempts = 0
+    const tick = () => {
+      if (attempts >= 8) return
+      attempts += 1
+      void Promise.resolve(readProfile()).catch(() => {})
+    }
+    const timer = setInterval(tick, 2500)
+    tick()
+    return () => clearInterval(timer)
+  }, [readProfile, freshName, freshAvatar])
+  useEffect(() => {
+    if (!open || readProfile === null) return undefined
+    void Promise.resolve(readProfile()).catch(() => {})
+    return undefined
+  }, [open, readProfile])
   const accountT = actions.accountT?.() ?? (key => key)
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -770,15 +831,15 @@ export function AccountLauncher({ seat = true, settingsOpen, openSettings, openO
       [t('Settings'), GearIcon, () => actions.openSettings('general')],
     ],
   ]
-  if (!signedIn && signIn !== null) groups.unshift([[t('Sign in to DeepSeek'), SignOutIcon, () => actions.signIn()]])
+  if (!signedIn && signIn !== null) groups.unshift([[t('Sign in'), SignOutIcon, () => actions.signIn()]])
   if (signedIn) groups.push([[accountT('signOut'), SignOutIcon, askSignOut, undefined, true]])
   return h(Fragment, null,
     h('button', { ref: button, type: 'button', className: profile ? 'bt-user-foot' : 'bt-account', 'aria-label': t('Account'), 'aria-haspopup': 'menu', 'aria-expanded': open, onClick: toggle },
       profile
-        ? h(Fragment, null, avatar?.status === 'ready' && typeof avatar.url === 'string'
-          ? h('img', { className: 'bt-user-pic', src: avatar.url, alt: '', referrerPolicy: 'no-referrer' })
-          : h('span', { className: 'bt-user-pic bt-user-none', 'aria-hidden': true }),
-        h('span', { className: 'bt-user-name' }, name ?? t('Account')))
+        ? h(Fragment, null, shownAvatar !== undefined
+          ? h('img', { className: 'bt-user-pic', src: shownAvatar, alt: '', referrerPolicy: 'no-referrer', onError: () => setBrokenAvatar(shownAvatar) })
+          : h('span', { className: 'bt-user-pic bt-user-none bt-user-bot', 'aria-hidden': true }, h(BotMark, { look: NO_PICTURE_LOOK, size: 32 })),
+        h('span', { className: 'bt-user-name' }, shownName ?? t('Account')))
         : h('span', { className: 'bt-you', 'aria-hidden': true }, h(BotMark, { look: MAIN_LOOK, size: 24 }))),
     open && box ? createPortal(h('div', { className: 'bt-menu bt-menu-up bt-account-menu', role: 'menu', 'aria-label': t('Account'), style: box },
       confirm !== null ? h('div', { className: 'bt-confirm', role: 'alertdialog', 'aria-label': accountT('signOut') },
@@ -854,23 +915,25 @@ export const RETURN_CSS = `
 `
 
 export function BrandMark({ size = 24 }) {
-  return h('span', { className: 'bt-brand-whale' }, h(BotMark, { look: MAIN_LOOK, size }))
+  return h('span', { className: 'bt-brand-whale' }, h(GrowBotLogo, { size }))
 }
 export function BrandName() {
-  return h('span', { style: { fontWeight: 600, fontSize: 14 } }, 'DS Bot')
+  return h('span', { style: { fontWeight: 600, fontSize: 14 } }, 'Grow Bot')
 }
 
 // The bottom-left corner, as Grok Bot has it: the signed-in account's picture and
-// name, and a click opens Jarvis's own Settings. No menu, no gear beside it.
+// name, and a click opens Grow Bot's own Settings. No menu, no gear beside it.
 export function UserFooter({ actions }) {
-  return h(AccountLauncher, { seat: false, profile: true, actions })
+  return h('div', { className: 'bt-user-row' },
+    h(AccountLauncher, { seat: false, profile: true, actions }),
+    h('button', { type: 'button', className: 'bt-round bt-user-connectors', 'aria-label': t('Connectors'), title: t('Connectors'), onClick: () => actions.openSettings('connectors') }, h(ConnectorsIcon)))
 }
 
 // With the whale holding the settings seat, the Bot row is just the account menu;
 // FooterAccount only shows when the seat went to no one. The shell's footer classes
 // are CSS-module names, so they match on their stems.
 export const SIDEBAR_CSS = `
-.bt-confirm{width:260px;max-width:72vw;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.bt-confirm{width:100%;max-width:100%;box-sizing:border-box;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
 .bt-confirm-text{margin:0;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
 .bt-confirm-error{margin:0;font-size:12px;line-height:17px;color:var(--bt-danger);overflow-wrap:anywhere}
 .bt-confirm-row{display:flex;justify-content:flex-end;gap:8px}

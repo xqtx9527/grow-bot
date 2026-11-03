@@ -7,7 +7,7 @@ description: 给 DS Bot 仓库的 Issue 和 PR 分诊：打类型、优先级、
 
 目标：每个 Open Issue 都有**一个类型、一个优先级**，需要时有一个领域；每个关闭的 Issue 都有**证据**。
 
-标签的含义和流程以 [CONTRIBUTING.zh.md](../../../CONTRIBUTING.zh.md#协作方式) 为准，本文只写怎么做。
+本文只写标签怎么用。
 
 **边界**：只动 Issue、PR 的标签、评论和关闭状态。不改代码，不改 Issue 正文，不合并 PR。带 `maintainer` 的条目只分诊、不下结论。
 
@@ -33,7 +33,7 @@ node .agents/skills/issue-triage/scripts/snapshot.mjs --out /tmp/triage
 
 | 坐标 | 取值 | 怎么判 |
 |---|---|---|
-| 类型 | `bug` · `enhancement` · `documentation` | 行为和设计不一致才是 `bug`。设计本来就这样、用户想要别的，是 `enhancement`。拿不准时先读 [docs/vision.zh.md](../../../docs/vision.zh.md) 和 [docs/plans/](../../../docs/plans/) |
+| 类型 | `bug` · `enhancement` · `documentation` | 行为和设计不一致才是 `bug`。设计本来就这样、用户想要别的，是 `enhancement`。拿不准时先问 |
 | 优先级 | `P0`–`P3` | `P0` 崩溃、丢数据、完全不能用 · `P1` 影响日常使用、刚引入的回归 · `P2` 普通 bug 或功能 · `P3` 建议、窄场景 |
 | 领域 | `area/*` 之一 | 按改动会落在哪个目录判。跨好几个领域或不属于任何领域，就不挂 |
 

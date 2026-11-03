@@ -56,7 +56,7 @@ export class HostProcess {
       this.#exit = new Promise((done) => {
         child.once('close', (code) => {
           const tail = redact(this.#stderr.trim())
-          this.#fail(new Error(`The DSH Host stopped (exit ${String(code)})${tail === '' ? '' : `:\n${tail}`}`), reject)
+          this.#fail(new Error(`Grow Bot的后台服务已停止（exit ${String(code)}）${tail === '' ? '' : `:\n${tail}`}`), reject)
           done()
         })
       })

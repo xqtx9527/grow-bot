@@ -2,6 +2,7 @@
 // The window loads the Host's loopback address as DSH Web does: DSH's sign-in sends the page's
 // origin as the address the browser comes back to, and accepts only a loopback one.
 import { netdiskLogin } from './netdisk-login.mjs'
+import { vaultKeyEnv } from './vault-key.mjs'
 import { app, BrowserWindow, WebContentsView, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, session, shell as electronShell, Tray } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
@@ -186,10 +187,11 @@ async function start() {
   const pnpm = join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
   const profileDir = join(where.dataDir, 'profiles', PROFILE)
   mkdirSync(profileDir, { recursive: true })
+  const vaultEnv = vaultKeyEnv()
   const newHost = () => new HostProcess({
     entry: join(here, 'host.mjs'),
     cwd: profileDir,
-    env: { ...process.env, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
+    env: { ...process.env, ...vaultEnv, DSH_HOME: where.dataDir, DS_BOT_PORT: String(port), DS_BOT_APP: '1', DS_BOT_USER_DSH_HOME: userDshHome(), DS_BOT_RUNTIME_DIR: app.isPackaged ? process.resourcesPath : join(here, '..', 'build', 'runtime'), ...(where.workspace ? { DS_BOT_WORKSPACE: where.workspace } : {}) },
     pnpm,
     onFailure: fail,
   })

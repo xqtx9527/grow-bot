@@ -68,6 +68,7 @@ export function install(rt) {
     agents: Object.values(state.agents),
     // Key names and who may use them; values never leave the host.
     secrets: rt.secretsView(),
+    vault: rt.vaultView(),
     capabilities: rt.capabilityLibraryView(),
     secretRequests: state.secretRequests ?? {},
     colors: [...COLORS, ...EXTRA_COLORS],
@@ -394,6 +395,12 @@ export function install(rt) {
         case 'connector-open':
           await rt.load()
           return ok(await rt.connectorEndpoint(endpoint, body))
+        case 'vault-save':
+        case 'vault-delete':
+        case 'vault-revoke':
+        case 'vault-reveal':
+        case 'vault-import':
+          return ok(await rt.vaultEndpoint(endpoint, body))
         case 'skill-import':
           return ok(await importSkill(body.url, { fetch: rt.config.skillFetch ?? fetch }))
         case 'capability-save':

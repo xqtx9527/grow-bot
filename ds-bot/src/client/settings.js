@@ -10,13 +10,15 @@ import { Segmented, useGlide } from './motion.js'
 import { GroupSettingsForm, NewGroupForm } from './group-settings.js'
 import { CreateBot } from './create-bot.js'
 import { KeptPrivateSection } from './kept-private.js'
-import { KeyIcon, SecretsPage } from './secret-card.js'
+import { KeyIcon } from './secret-card.js'
+import { VaultPage } from './vault-page.js'
 import { UsagePage } from './usage-page.js'
 import { ConnectorsPage } from './connectors.js'
 import { LibraryPage } from './capability-settings.js'
+import { PluginsPage } from './plugins-page.js'
 import { BrowserPage } from './browser-settings.js'
 import { SchedulesPage } from './schedules.js'
-import { FeedbackIcon, FeedbackPage } from './feedback.js'
+import { FeedbackPage } from './feedback.js'
 import { AboutPage } from './about.js'
 import { ProvidersPage } from './providers-page.js'
 import { MagpieCard } from './magpie-card.js'
@@ -28,10 +30,10 @@ const capitalize = word => word[0].toUpperCase() + word.slice(1)
 // Settings dialog: a 198px page list beside the page. Bots and group chats each list
 // their members, and one opens on its own settings form. Usage widens the dialog.
 // Models is there only in a window without DSH's own settings, which carry the providers.
-const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['skills', 'Skills'], ['connectors', 'Connectors'], ['plugins', 'Plugins'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Secrets'], ['feedback', 'Feedback'], ['about', 'About Grow Bot']]
+const SETTINGS_PAGES = [['account', 'Account and balance'], ['models', 'Model settings'], ['general', 'General'], ['bots', 'Bots'], ['groups', 'Group chats'], ['skills', 'Skills'], ['connectors', 'Connectors'], ['plugins', 'Plugins'], ['browser', 'Browser'], ['schedules', 'Scheduled tasks'], ['usage', 'Usage'], ['secrets', 'Vault'], ['about', 'About and feedback']]
 // A heading goes above the page it names.
 const PAGE_GROUPS = { skills: 'Customize', browser: 'More' }
-const PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, skills: BrainIcon, connectors: ConnectorsIcon, plugins: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, feedback: FeedbackIcon, about: InfoIcon }
+const PAGE_ICONS = { ...SETTINGS_ICONS, account: SETTINGS_ICONS.bots, models: SlidersIcon, skills: BrainIcon, connectors: ConnectorsIcon, plugins: PlugIcon, browser: ConnectorIcon, schedules: ClockIcon, secrets: KeyIcon, about: InfoIcon }
 
 function EmbeddedEntry({ entry, actions, owner = {} }) {
   const ops = useMemo(() => entry.inject?.() ?? {}, [entry])
@@ -289,7 +291,9 @@ export function SettingsDialog({ page, id, roster, actions, useUpdate, leaving =
   const bot = page === 'bots' && id ? roster.byId[id] : undefined
   const room = page === 'groups' && id ? roster.roomsById[id] : undefined
   const pages = SETTINGS_PAGES.filter(([key]) => (!['models', 'account'].includes(key) || actions.settingsSlots !== undefined || (key === 'models' && actions.providers !== undefined)))
-  const shown = pages.some(([key]) => key === page) ? page : 'general'
+  // Feedback lives on the About page; links to it still arrive by that name.
+  const wanted = page === 'feedback' ? 'about' : page
+  const shown = pages.some(([key]) => key === wanted) ? wanted : 'general'
   const usageFocus = shown === 'usage' && id ? id : null
   const label = t(pages.find(([key]) => key === shown)[1])
   const back = bot ? t('Back to Bots') : room ? t('Back to group chats') : usageFocus ? t('All usage') : null
@@ -334,12 +338,12 @@ export function SettingsDialog({ page, id, roster, actions, useUpdate, leaving =
           shown === 'groups' && !room ? h(GroupsPage, { roster, actions, run }) : null,
           shown === 'skills' ? h(LibraryPage, { kind: 'skill', roster, actions, run }) : null,
           shown === 'connectors' ? h(ConnectorsPage, { roster, actions, run }) : null,
-          shown === 'plugins' ? h(LibraryPage, { kind: 'pack', roster, actions, run }) : null,
+          shown === 'plugins' ? h(PluginsPage, { actions }) : null,
           shown === 'browser' ? h(BrowserPage, { roster, actions, run, Section: SetSection, Row: SetRow }) : null,
           shown === 'schedules' ? h(SchedulesPage, { roster, actions, start: id ?? undefined }) : null,
-          shown === 'secrets' ? h(SecretsPage, { roster, actions, run, Section: SetSection }) : null,
-          shown === 'feedback' ? h(FeedbackPage, { actions, run, Section: SetSection, Row: SetRow }) : null,
-          shown === 'about' ? h(AboutPage, { useUpdate, actions, run, Section: SetSection, Row: SetRow }) : null),
+          shown === 'secrets' ? h(VaultPage, { roster, actions, run, Section: SetSection }) : null,
+          shown === 'about' ? h(AboutPage, { useUpdate, actions, run, Section: SetSection, Row: SetRow }) : null,
+          shown === 'about' ? h(FeedbackPage, { actions, run, Section: SetSection, Row: SetRow }) : null),
         usageOpened ? h('div', { key: 'usage', className: 'bt-settings-scroll bt-settings-usage', 'data-off': shown === 'usage' ? undefined : '', 'aria-hidden': shown === 'usage' ? undefined : true },
           shown === 'usage' ? errorLine : null,
           h(UsagePage, { roster, actions, focusId: usageFocus })) : null),

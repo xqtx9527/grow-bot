@@ -423,7 +423,7 @@ test('refs exposes the ARIA snapshot tool contract', () => {
     'browser_tabs',
     'browser_back',
     'browser_screenshot',
-    'browser_handoff',
+    'browser_saved_logins', 'browser_sign_in', 'browser_handoff',
     'browser_resume',
   ])
   assert.equal(refsTools.some(tool => tool.name === 'browser_scroll'), false)

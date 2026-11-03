@@ -2,6 +2,12 @@
 // on a loopback port and reports the launch URL over IPC.
 // Follows DeepSeek Harness apps/desktop-host/src/index.ts (MIT); see NOTICE.
 import { inspect } from 'node:util'
+
+// The vault's key stays in this process: nothing a Bot starts may inherit it.
+const vaultKey = process.env.GROW_BOT_VAULT_KEY
+delete process.env.GROW_BOT_VAULT_KEY
+if (vaultKey) globalThis[Symbol.for('grow-bot.vault-key')] = vaultKey
+
 import { loadLayeredEnv, reportSkippedBundles } from '@deepseek-ai/dsh-app-boot'
 import { runProfile } from '@deepseek-ai/dsh/profile-boot'
 import { INSTALL_ANCHOR, loadAppProfile, PROFILE } from './profile.mjs'

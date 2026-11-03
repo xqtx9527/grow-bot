@@ -1,4 +1,4 @@
-// Settings → About DS Bot: the version, updates for DS Bot and DSH, and the links to
+// Settings → About Grow Bot: the version, updates for Grow Bot and DSH, and the links to
 // the repository. The sidebar's cloud button shows the same update state.
 import { createElement as h, useEffect, useState } from 'react'
 import { GitHubMark } from './connectors.js'
@@ -13,11 +13,11 @@ import { showsDshRow } from './dsh-offer.js'
 const starCount = count => new Intl.NumberFormat(dateLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(count)
 
 function botHint(update) {
-  if (update.phase === 'installing') return t('Updating DS Bot…')
-  if (update.phase === 'installed') return t('Restart DSH to start using DS Bot {version}.', { version: update.installed ?? update.latest })
-  if (update.phase === 'updated') return t('DS Bot {version} is installed.', { version: update.installed ?? update.latest })
+  if (update.phase === 'installing') return t('Updating Grow Bot…')
+  if (update.phase === 'installed') return t('Restart DSH to start using Grow Bot {version}.', { version: update.installed ?? update.latest })
+  if (update.phase === 'updated') return t('Grow Bot {version} is installed.', { version: update.installed ?? update.latest })
   if (update.phase === 'failed') return t('The update did not finish: {reason}', { reason: hostText(update.error ?? '') })
-  if (update.available) return t('DS Bot {version} is available', { version: update.latest })
+  if (update.available) return t('Grow Bot {version} is available', { version: update.latest })
   if (update.source === 'app') return t('Updates come with the DeepSeek Bot app.')
   if (update.enabled === false) return t('Update checks are off.')
   if (update.source === 'path') return t('Installed from a local folder; update it there.')
@@ -27,7 +27,7 @@ function botHint(update) {
   return `${update.latest ? t('Up to date') : t('Could not check for updates.')} · ${checked}`
 }
 
-// The DS Bot row in the desktop app shows the app's own update state, kept as ownApp on
+// The Grow Bot row in the desktop app shows the app's own update state, kept as ownApp on
 // the update value. Anything that is not a state object (DSH Desktop, DSH Web, an
 // unpackaged app) leaves the row with today's "comes with the app" text.
 export function ownAppRow(ownApp) {
@@ -48,7 +48,7 @@ function dshHint(dsh, shown) {
   if (dsh.phase === 'installing') return t('Updating DSH…')
   if (dsh.phase === 'installed') return t('Restart DSH to start using DSH {version}.', { version: dsh.installed ?? dsh.verified })
   if (dsh.phase === 'failed') return t('The update did not finish: {reason}', { reason: hostText(dsh.error ?? '') })
-  if (dsh.available === false && dsh.blockedBy) return t('Update DS Bot {version} first.', { version: dsh.blockedBy })
+  if (dsh.available === false && dsh.blockedBy) return t('Update Grow Bot {version} first.', { version: dsh.blockedBy })
   if (shown) return t('DSH {version} is available', { version: dsh.verified })
   return t('Version {version}', { version: dsh.current })
 }
@@ -104,19 +104,18 @@ export function AboutPage({ useUpdate, actions, run, Section, Row }) {
         h('span', { className: 'bt-about-name' }, 'Grow Bot'),
         update.current ? h('span', { className: 'bt-about-version' }, t('Version {version}', { version: update.current })) : null),
       repo ? h('a', {
-        className: 'bt-star', href: repo, target: '_blank', rel: 'noopener noreferrer', title: t('Star DS Bot on GitHub'),
-        'aria-label': stars === null ? t('Star DS Bot on GitHub') : `${t('Star DS Bot on GitHub')} · ${t('{count} stars', { count: stars })}`,
+        className: 'bt-star', href: repo, target: '_blank', rel: 'noopener noreferrer', title: t('Star Grow Bot on GitHub'),
+        'aria-label': stars === null ? t('Star Grow Bot on GitHub') : `${t('Star Grow Bot on GitHub')} · ${t('{count} stars', { count: stars })}`,
       },
       h('span', { className: 'bt-star-main' }, h('span', { className: 'bt-star-icon' }, h(StarLineIcon)), 'Star'),
       stars === null ? null : h('span', { className: 'bt-star-count' }, starCount(stars))) : null),
-    repo ? h('p', { key: 'ask', className: 'bt-about-ask' }, t('If DS Bot helps you, a star on GitHub helps more people find it.')) : null,
+    repo ? h('p', { key: 'ask', className: 'bt-about-ask' }, t('If Grow Bot helps you, a star on GitHub helps more people find it.')) : null,
     h(Section, { key: 'updates', title: t('Updates') },
       h(Row, { label: 'Grow Bot', hint: ownRow?.hint ?? botHint(update) }, botControl, update.available && update.notesUrl ? h('a', linkProps(update.notesUrl), t("What's new")) : null),
       dsh?.current ? h(Row, { label: t('Engine'), hint: dshHint(dsh, dshShown) }, dshControl) : null),
     h(Section, { key: 'links', title: t('Links') },
       repo ? h(Row, { label: t('Source code'), hint: repo.replace(/^https:\/\//, '') }, h('a', linkProps(repo), h(GitHubMark), t('Open'))) : null,
-      update.notesUrl ? h(Row, { label: t('Release notes') }, h('a', linkProps(update.notesUrl), t('Open'))) : null,
-      h(Row, { label: t('Report a problem') }, h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => actions.openSettings('feedback') }, t('Open')))),
+      update.notesUrl ? h(Row, { label: t('Release notes') }, h('a', linkProps(update.notesUrl), t('Open'))) : null),
   ]
 }
 

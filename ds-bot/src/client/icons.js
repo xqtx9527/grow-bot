@@ -21,6 +21,14 @@ export function BrainIcon() {
   return h('svg', { width: 18, height: 18, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
     h('path', { d: 'M5 3.5h8.5L16 6v10.5H5z' }), h('path', { d: 'M8 8h5M8 11h5M8 14h3' }))
 }
+export function CardIcon() {
+  return h('svg', { width: 16, height: 16, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', 'aria-hidden': true },
+    h('rect', { x: 2.5, y: 4.5, width: 15, height: 11, rx: 2.5 }), h('path', { d: 'M2.5 8.5h15M5.5 12.5h3' }))
+}
+export function ImportIcon() {
+  return h('svg', { width: 16, height: 16, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+    h('path', { d: 'M5.500 2.500h6l3.500 3.500v11.500h-9.500z' }), h('path', { d: 'M8 10.500h4M8 13.500h4' }))
+}
 export function SearchIcon() {
   return h('svg', { width: 16, height: 16, viewBox: '0 0 20 20', 'aria-hidden': true }, h('circle', { cx: 8.5, cy: 8.5, r: 5.5, stroke: 'currentColor', strokeWidth: 1.6, fill: 'none' }), h('path', { d: 'M13 13l4 4', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' }))
 }

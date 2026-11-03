@@ -29,6 +29,7 @@ import { BROWSER_CSS } from './browser-pane.js'
 import { PROVIDERS_CSS } from './providers-page.js'
 import { MAGPIE_CSS } from './magpie-card.js'
 import { LIBRARY_CSS } from './library-page.js'
+import { VAULT_CSS } from './vault-page.js'
 import { SECRET_CSS, SecretDock } from './secret-card.js'
 import { LearningDock, LearningTurnTail, LEARNING_CSS } from './learning-card.js'
 import { MODEL_CSS, ModelChoiceDock, DeepSeekSignIn } from './model-menu.js'
@@ -667,6 +668,14 @@ export function apply(ctx) {
   // DSH's own settings: models, providers, keys and its plugins.
   actions.openHarnessSettings = openHarnessSettings
   actions.openHarnessOnboarding = openHarnessOnboarding
+  // DSH's plugin manager; absent where the host does not offer one.
+  actions.pluginManager = () => ctx.get('remote.pluginManager') ?? undefined
+  actions.pluginHome = (name) => {
+    const navigation = ctx.get('pluginNavigation')
+    ui.set(state => ({ ...state, settings: null }))
+    if (name) navigation?.openBundle(name)
+    else navigation?.openList()
+  }
   actions.voiceSetup = () => {
     const navigation = ctx.get('pluginNavigation')
     return navigation ? () => navigation.openBundle(VOICE_BUNDLE) : null
@@ -678,7 +687,7 @@ export function apply(ctx) {
     update.set(previous => ({ ...previous, ...value }))
     wakeUpdate()
   }
-  // The DSH the newest released DS Bot verified installs the same way.
+  // The DSH the newest released Grow Bot verified installs the same way.
   actions.installDshUpdate = async () => {
     const dsh = await call('dsh-update-install')
     update.set(previous => ({ ...previous, dsh }))
@@ -891,7 +900,7 @@ export function apply(ctx) {
     () => installCompiledStyles(SHELL_CSS, 'shell'),
     () => installCompiledStyles(SIDEBAR_CSS, 'sidebar'),
     () => installCompiledStyles(GROW_BOT_CSS, 'grow-bot'),
-    () => installCompiledStyles(SECRET_CSS + PROVIDERS_CSS + MAGPIE_CSS + LIBRARY_CSS, 'secrets'),
+    () => installCompiledStyles(SECRET_CSS + PROVIDERS_CSS + MAGPIE_CSS + LIBRARY_CSS + VAULT_CSS, 'secrets'),
     () => installCompiledStyles(LEARNING_CSS, 'learning'),
     () => installCompiledStyles(MODEL_CSS + FOLDER_CSS + BOT_SETTINGS_CSS + GROUP_SETTINGS_CSS + AVATAR_LIBRARY_CSS, 'models'),
     () => installCompiledStyles(USAGE_CSS, 'usage'),

@@ -28,8 +28,11 @@ export const BUILT_IN_SKILLS = [
   },
 ]
 
-export const BUILT_IN_PLUGINS = [
-  { name: 'office-kit', title: 'Office kit', description: 'Weekly reports, meeting minutes and daily plans.', items: ['weekly-report', 'meeting-minutes', 'daily-plan'] },
-  { name: 'writing-kit', title: 'Writing kit', description: 'Research a topic, then polish what you write.', items: ['research-brief', 'polish-writing'] },
-  { name: 'developer-kit', title: 'Developer kit', description: 'Review code and research technical questions.', items: ['code-review', 'research-brief'] },
+export const REVIEWED_PLUGINS = [
+  { name: 'dsh-image-gen', spec: 'dsh-image-gen@0.10.2', title: 'Image generation', description: 'Lets Bots create and edit images with your own API key. Community plugin, reviewed at version 0.10.2.', warning: 'Use API keys only. Its subscription sign-ins go through private endpoints and can put those accounts at risk.' },
 ]
+
+const OWN = new Set(['ds-bot'])
+
+/** The plugins the user added: what DSH ships and Grow Bot itself stay out of the list. */
+export const addedPlugins = bundles => bundles.filter(bundle => bundle.installed && !bundle.official && !OWN.has(bundle.name))

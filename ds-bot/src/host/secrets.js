@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { replaceFile } from './files.js'
 import { output } from './tools.js'
+import { isSealed, seal, unseal, vaultKey } from './vault-crypto.js'
 
 export const SECRET_NAME = /^[A-Z][A-Z0-9_]{0,63}$/
 export const ENV_PREFIX = 'DSH_SECRET_'
@@ -98,7 +99,7 @@ export function install(rt) {
   let refreshEnv = () => {}
 
   const changed = () => {
-    redact = redactor([...secrets.values()])
+    redact = redactor([...secrets.values(), ...(rt.vaultValues?.() ?? [])])
     refreshEnv()
     rt.secretsChanged?.()
   }
@@ -140,6 +141,19 @@ export function install(rt) {
     } catch {
       parsed = null
     }
+    const key = vaultKey(rt.config)
+    const plain = key !== undefined && parsed !== null && !isSealed(parsed) && Array.isArray(parsed.secrets)
+    if (isSealed(parsed)) {
+      // Without the keychain's key the file is locked, not broken: nothing may write over it.
+      try {
+        parsed = JSON.parse(unseal(key, parsed))
+      } catch {
+        blocked = 'locked'
+        rt.warn('ds-bot: the secrets file %s is sealed and could not be opened', path)
+        changed()
+        return
+      }
+    }
     if (parsed === null || typeof parsed !== 'object' || !Array.isArray(parsed.secrets)) {
       // A file that is not a secrets file is kept aside, like a broken state.json, then
       // the store goes on with an empty one.
@@ -173,6 +187,8 @@ export function install(rt) {
     }
     if (!loadedReadOnly) await chmod(path, 0o600).catch(() => {})
     changed()
+    // A file from before sealing is sealed the first time the key is here.
+    if (plain && !loadedReadOnly) await persist().catch(error => rt.warn('ds-bot: secrets not sealed (%s)', reason(error)))
   }
 
   // Resolves once secrets.json holds the current map; rejects when the write failed.
@@ -180,7 +196,9 @@ export function install(rt) {
     if (blocked !== undefined) return Promise.reject(new Error(`The secrets file ${path} could not be read (${blocked}). Grow Bot does not change it; fix or move the file and reload.`))
     const readOnly = rt.readOnly()
     if (readOnly !== undefined) return Promise.reject(new Error(readOnly))
-    const snapshot = JSON.stringify({ version: 1, secrets: [...secrets.values()] }, null, 2)
+    const body = JSON.stringify({ version: 1, secrets: [...secrets.values()] }, null, 2)
+    const key = vaultKey(rt.config)
+    const snapshot = key === undefined ? body : JSON.stringify(seal(key, body))
     const job = writing.then(async () => {
       await mkdir(home, { recursive: true })
       const temp = `${path}.${process.pid}.${randomUUID()}.tmp`
@@ -587,5 +605,6 @@ export function install(rt) {
     forgetBotSecrets,
     loadSecrets,
     redactSecrets: text => redact(text),
+    secretsRefresh: () => { redact = redactor([...secrets.values(), ...(rt.vaultValues?.() ?? [])]) },
   })
 }

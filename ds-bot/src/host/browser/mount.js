@@ -67,7 +67,7 @@ async function saveShot(ctx, value) {
  * @param {any} ctx
  * @param {{ toolDefs: any[], defineTool: Function, keyOf: (exec: any) => Promise<string|undefined>, profileRoot: string, downloadRoot?: string, downloadRoots?: (botId: string) => Promise<string[]>, uploadRoots?: (botId: string) => Promise<string[]>, headless: boolean, playwrightUrl?: string, executablePath?: string, actionTimeout?: number, authorize?: (exec: any, botId: string, action: any) => Promise<void>, completeFor?: (exec: any) => Function, connect?: (botId: string, downloadRoots?: string[]) => Promise<string>, getHold?: (botId: string) => any, onHold?: (botId: string, hold: any) => void, subscribeHolds?: (listener: (botId: string, hold: any) => void) => (() => void) | undefined, openSession?: typeof openBotBrowser, api?: object }} options
  */
-export function mountBrowserPlugin(ctx, { toolDefs, defineTool, keyOf, profileRoot, downloadRoot, downloadRoots, uploadRoots, headless, playwrightUrl, executablePath, actionTimeout, authorize, completeFor, connect, getHold, onHold, subscribeHolds, openSession = openBotBrowser, api }) {
+export function mountBrowserPlugin(ctx, { toolDefs, defineTool, keyOf, profileRoot, downloadRoot, downloadRoots, uploadRoots, vault, headless, playwrightUrl, executablePath, actionTimeout, authorize, completeFor, connect, getHold, onHold, subscribeHolds, openSession = openBotBrowser, api }) {
   const sessions = new Map()
   const names = new Set(toolDefs.map(tool => tool.name))
   // Tool results persist their rendered blocks, so changing render() cannot fix
@@ -165,6 +165,7 @@ export function mountBrowserPlugin(ctx, { toolDefs, defineTool, keyOf, profileRo
           profileDir: join(profileRoot, botId),
           session,
           complete: completeFor?.(exec),
+          vault: vault ? { login: (url, account) => vault.login(exec, botId, url, account), logins: url => vault.logins(url) } : undefined,
           origin: { ...(exec.callId !== undefined ? { callId: exec.callId } : {}), ...(exec.agent?.id !== undefined ? { sessionId: exec.agent.id } : {}) },
         })))
       },

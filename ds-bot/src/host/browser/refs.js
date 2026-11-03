@@ -7,7 +7,7 @@ export const systemPrompt = [
   'Take a snapshot, then use its [ref=eN] values with browser_click, browser_type, or browser_select. A bare number such as 12 is also accepted.',
   'Every action returns a fresh snapshot. Refs can change when the page changes. Use browser_tabs to list, select, or close tabs.',
   'Use browser_screenshot for content that is only drawn, such as a canvas.',
-  'When the page wants a login, a payment, or a captcha, call browser_handoff and stop. Do not invent a password, a code, or a card number.',
+  'When the page wants a login, call browser_saved_logins to see the accounts for this site and their hints, then browser_sign_in: it uses the saved login, and you never see the password. If none is saved, or for a payment or a captcha, call browser_handoff and stop. Do not invent a password, a code, or a card number.',
   "Posting, uploading, downloading, or deleting may need approval; deleting needs a second confirmed click after you check the snapshot. Payments, logins, and captchas are for the user via browser_handoff. If a result is unknown, check with browser_snapshot and never repeat the action blindly.",
   'When the task is done, answer in plain text and do not call a tool.',
 ].join('\n')
@@ -123,6 +123,40 @@ export const toolDefs = [
     parameters: {},
     async execute(_args, ctx) {
       return ctx.session.shot()
+    },
+  },
+  {
+    name: 'browser_saved_logins',
+    needsBrowser: true,
+    description: 'List the accounts saved in the vault for this site, with the hint for each. No passwords.',
+    parameters: {},
+    async execute(_args, ctx) {
+      const logins = await ctx.vault?.logins(ctx.session.url()) ?? []
+      if (logins.length === 0) return { text: 'The vault has no login for this site.' }
+      return { text: logins.map(login => `${login.account || '(no account name)'}${login.hint ? ` — ${login.hint}` : ''}`).join('\n') }
+    },
+  },
+  {
+    name: 'browser_sign_in',
+    needsBrowser: true,
+    description: 'Sign in with the login saved in the vault for this site. Grow Bot types it into the page; you never see the password.',
+    parameters: {
+      username_ref: { type: 'string', description: 'ARIA ref of the account field, when the page shows one' },
+      password_ref: { type: 'string', description: 'ARIA ref of the password field, when the page shows one' },
+      account: { type: 'string', description: 'Which saved account, when the site has several' },
+      submit: { type: 'boolean', description: 'Press Enter after filling' },
+    },
+    async execute(args, ctx) {
+      if (!ctx.vault) return { text: 'There is no vault here. Call browser_handoff with reason "login".' }
+      if (!args.username_ref && !args.password_ref) return { text: 'Give the ref of the account field or the password field.' }
+      const login = await ctx.vault.login(ctx.session.url(), args.account)
+      if (!login) return { text: 'The vault has no login for this site. Call browser_handoff with reason "login".' }
+      if (args.username_ref && login.username) {
+        const typed = await ctx.session.type(args.username_ref, login.username, args.submit === true && !args.password_ref)
+        if (!args.password_ref) return typed
+      }
+      if (!args.password_ref) return { text: 'This login has no account name. Give the ref of the password field.' }
+      return ctx.session.type(args.password_ref, login.password, args.submit === true)
     },
   },
   {

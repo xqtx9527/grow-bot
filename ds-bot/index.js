@@ -29,6 +29,7 @@ import * as avatarLibrary from './src/host/avatar-library.js'
 import * as browser from './src/host/browser.js'
 import * as browserPlugins from './src/host/browser-plugins.js'
 import * as secrets from './src/host/secrets.js'
+import * as vault from './src/host/vault.js'
 import * as connectors from './src/host/connectors.js'
 import * as oauthConnectors from './src/host/oauth-connectors.js'
 import * as capabilities from './src/host/capabilities.js'
@@ -53,7 +54,7 @@ export const inject = ['llm', 'tools', 'systemPrompt', 'sessionController', 'ses
 // install. Listeners run and tools are listed in registration order, so this order holds:
 // usage meters model requests after every listener that rewrites them. privacy checks a
 // call before the hooks of tools do, so a closed call never reaches a card they show.
-const MODULES = [diagnostics, store, models, providers, magpie, permissions, turns, handoffs, requests, delivery, roster, folders, privacy, agents, prompt, timeContext, tools, chatIndex, groups, approvals, resume, memory, parts, images, avatarLibrary, secrets, connectors, oauthConnectors, capabilities, learning, schedules, browser, browserPlugins, usage, update, dshUpdate, thinking, feed, channel, officeSkills]
+const MODULES = [diagnostics, store, models, providers, magpie, permissions, turns, handoffs, requests, delivery, roster, folders, privacy, agents, prompt, timeContext, tools, chatIndex, groups, approvals, resume, memory, parts, images, avatarLibrary, secrets, vault, connectors, oauthConnectors, capabilities, learning, schedules, browser, browserPlugins, usage, update, dshUpdate, thinking, feed, channel, officeSkills]
 
 export function apply(ctx, config = {}) {
   createRuntime(ctx, config)

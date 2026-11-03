@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { hostText, t } from './i18n.js'
-import { BrainIcon, PlugIcon, PlusIcon } from './icons.js'
-import { BUILT_IN_PLUGINS, BUILT_IN_SKILLS } from './library-catalog.js'
+import { BrainIcon, PlusIcon } from './icons.js'
+import { BUILT_IN_SKILLS } from './library-catalog.js'
 import { LibraryBar, LibraryCard, LibraryGrid, matches } from './library-page.js'
 
 export const blank = () => ({ name: '', kind: 'mcp', description: '', transport: 'stdio', command: '', argsText: '', envText: '{}', url: '', headersText: '{}', content: '', items: [] })
@@ -156,28 +156,22 @@ function SkillImport({ actions, onClose }) {
 
 const PAGES = {
   skill: { mark: BrainIcon, catalog: BUILT_IN_SKILLS, empty: 'No skills yet. Add one from Discover.', hint: 'Turn a skill on for a Bot in its settings.' },
-  pack: { mark: PlugIcon, catalog: BUILT_IN_PLUGINS, empty: 'No plugins yet. Add one from Discover.', hint: 'Turn a plugin on for a Bot in its settings.' },
 }
 
-// Settings → Skills and Settings → Plugins.
+// Settings → Skills. Packs saved earlier stay here beside the skills they gather.
 export function LibraryPage({ kind, roster, actions, run }) {
   const page = PAGES[kind]
   const library = roster.capabilities ?? []
-  const items = library.filter(item => item.kind === kind).sort((a, b) => a.name.localeCompare(b.name))
+  const items = library.filter(item => item.kind === kind || item.kind === 'pack').sort((a, b) => a.name.localeCompare(b.name))
   const [tab, setTab] = useState(items.length > 0 ? 'mine' : 'discover')
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(null)
   const [draft, setDraft] = useState(null)
   const Mark = page.mark
   const has = name => library.some(item => item.name === name)
-  const skillOf = name => BUILT_IN_SKILLS.find(skill => skill.name === name)
   const saveSkill = skill => actions.saveCapability({ name: skill.name, kind: 'skill', description: skill.description, content: skill.content })
   const install = async (entry) => {
-    if (kind === 'skill') await saveSkill(entry)
-    else {
-      for (const name of entry.items) if (!has(name)) await saveSkill(skillOf(name))
-      await actions.saveCapability({ name: entry.name, kind: 'pack', description: entry.description, items: entry.items })
-    }
+    await saveSkill(entry)
     setTab('mine')
   }
   const shown = tab === 'mine'

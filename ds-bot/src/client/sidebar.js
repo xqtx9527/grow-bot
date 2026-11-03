@@ -509,7 +509,7 @@ export function TeamSidebar(props) {
     mode === 'hidden' ? null : h(LeftColumn, { mode, width: ourWidth, onGrip: startDrag }, content))
 }
 
-// The update button at the sidebar's top right: a cloud while a newer DS Bot —
+// The update button at the sidebar's top right: a cloud while a newer Grow Bot —
 // or a newer verified DSH — is available, then the install's progress and
 // result. Its card has one row each for the bot and DSH, with their versions,
 // the release notes link, and each row's own button.
@@ -554,31 +554,31 @@ function UpdateButton({ useUpdate, actions }) {
     setDshError('')
     void actions.installDshUpdate().catch(failure => setDshError(hostText(failure?.message ?? String(failure))))
   }
-  const label = phase === 'installing' ? t('Updating DS Bot…')
+  const label = phase === 'installing' ? t('Updating Grow Bot…')
     : dshPhase === 'installing' ? t('Updating DSH…')
-      : phase === 'installed' ? t('DS Bot {version} is installed. Restart DSH to use it.', { version: update.installed ?? update.latest })
-        : phase === 'updated' ? t('DS Bot {version} is installed.', { version: update.installed ?? update.latest })
+      : phase === 'installed' ? t('Grow Bot {version} is installed. Restart DSH to use it.', { version: update.installed ?? update.latest })
+        : phase === 'updated' ? t('Grow Bot {version} is installed.', { version: update.installed ?? update.latest })
         : dshPhase === 'installed' ? t('Restart DSH to start using DSH {version}.', { version: dsh.installed ?? dsh.verified })
-          : update?.available ? t('DS Bot {version} is available', { version: update.latest })
+          : update?.available ? t('Grow Bot {version} is available', { version: update.latest })
             : t('DSH {version} is available', { version: dsh?.verified })
   const message = error || (phase === 'failed' ? update.error : '')
   const dshMessage = dshError || (dshPhase === 'failed' ? dsh?.error : '')
   const dshText = dshPhase === 'installed'
     ? t('Restart DSH to start using DSH {version}.', { version: dsh.installed ?? dsh.verified })
     : dsh?.available === false && dsh?.blockedBy
-      ? t('Update DS Bot {version} first.', { version: dsh.blockedBy })
+      ? t('Update Grow Bot {version} first.', { version: dsh.blockedBy })
       : t('You have {version}.', { version: dsh?.current })
   return h(Fragment, null,
     h('button', {
       ref: button, type: 'button', className: 'bt-round bt-update', 'data-phase': cloudPhase, 'aria-label': label, title: label,
       'aria-haspopup': 'dialog', 'aria-expanded': open, onClick: toggle,
     }, h(CloudDownloadIcon, { done: phase === 'installed' || phase === 'updated' }), phase === 'failed' || dshPhase === 'failed' ? h('span', { className: 'bt-update-dot', 'aria-hidden': true }) : null),
-    open && box ? createPortal(h('div', { className: 'bt-update-pop', role: 'dialog', 'aria-label': update?.available || phase !== 'idle' ? t('DS Bot update') : t('DSH update'), style: box },
+    open && box ? createPortal(h('div', { className: 'bt-update-pop', role: 'dialog', 'aria-label': update?.available || phase !== 'idle' ? t('Grow Bot update') : t('DSH update'), style: box },
       update?.available || phase !== 'idle' ? h(Fragment, null,
-        h('div', { className: 'bt-update-title' }, phase === 'installed' || phase === 'updated' ? t('Update installed') : t('DS Bot {version}', { version: update.latest })),
+        h('div', { className: 'bt-update-title' }, phase === 'installed' || phase === 'updated' ? t('Update installed') : t('Grow Bot {version}', { version: update.latest })),
         h('div', { className: 'bt-update-text' }, phase === 'installed'
-          ? t('Restart DSH to start using DS Bot {version}.', { version: update.installed ?? update.latest })
-          : phase === 'updated' ? t('DS Bot {version} is installed.', { version: update.installed ?? update.latest })
+          ? t('Restart DSH to start using Grow Bot {version}.', { version: update.installed ?? update.latest })
+          : phase === 'updated' ? t('Grow Bot {version} is installed.', { version: update.installed ?? update.latest })
             : t('You have {version}.', { version: update.current })),
         message ? h('div', { className: 'bt-update-error', role: 'alert' }, t('The update did not finish: {reason}', { reason: message })) : null,
         h('div', { className: 'bt-update-actions' },
@@ -897,9 +897,9 @@ export function FooterAccount(props) {
 export function BotReturn({ wide, useSurface, actions }) {
   const mode = useSurface(value => value.mode)
   if (mode !== 'agent') return null
-  return h('button', { type: 'button', className: 'bt-return', 'aria-label': t('DS Bot'), title: t('DS Bot'), onClick: () => actions.setSurface('bot') },
+  return h('button', { type: 'button', className: 'bt-return', 'aria-label': t('Grow Bot'), title: t('Grow Bot'), onClick: () => actions.setSurface('bot') },
     h(BotMark, { look: MAIN_LOOK, size: 20 }),
-    wide ? h('span', { className: 'bt-return-name' }, t('DS Bot')) : null)
+    wide ? h('span', { className: 'bt-return-name' }, t('Grow Bot')) : null)
 }
 
 // Agent mode has none of the shell-group styles, so the return button carries its own.
@@ -953,7 +953,7 @@ export const SIDEBAR_CSS = `
 [class*="_footArea"]:has(.bt-foot-account)>[class*="_settingsArea"]{grid-column:3}
 [class*="_footArea"]:has(.bt-foot-account)>[class*="_settingsArea"] button[class*="_trigger"] [class*="_label"]{display:none!important}
 
-/* The update cloud springs in when a newer DS Bot shows up; its arrow drops in a
+/* The update cloud springs in when a newer Grow Bot shows up; its arrow drops in a
    loop while the install runs. */
 .bt-round.bt-update{position:relative;color:var(--bt-accent,#4D6BFE);animation:bt-update-in ${SPRING_SHAPE.duration}ms ${SPRING_SHAPE.easing}}
 .bt-round.bt-update svg{width:17px;height:17px}

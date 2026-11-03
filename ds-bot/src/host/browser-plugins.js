@@ -111,6 +111,22 @@ async function authorizeBrowserAction(rt, exec, botId, action) {
   throw new Error('The approval could not be obtained. Nothing was done.')
 }
 
+// The first time a Bot uses a saved login it asks; after that the login is its to use.
+async function vaultLogin(rt, exec, botId, url, account) {
+  const login = await rt.vaultLogin?.(url, account)
+  if (login === undefined) return undefined
+  if (login.allowedBots?.includes(botId)) return login
+  const bot = rt.botOf(botId)
+  const approval = rt.ctx.get?.('approval')
+  if (approval === undefined || exec.agent?.session === undefined) throw new Error('Using a saved login needs the user\'s approval, and there is no way to ask here. Call browser_handoff with reason "login".')
+  const reason = `Let ${bot.name} sign in to ${login.site} as ${login.username}?`
+  const displayReason = { en: reason, zh: `允许${bot.name}用 ${login.username} 登录 ${login.site} 吗？` }
+  const outcome = await approval.request({ agent: exec.agent, toolName: exec.name, ...(exec.callId !== undefined ? { callId: exec.callId } : {}), reason, displayReason, ...(exec.signal ? { signal: exec.signal } : {}) }).catch(() => 'failed')
+  if (outcome !== 'allowed-once') throw new Error('The user did not allow this sign-in. Do not try it again unless the user asks.')
+  await rt.vaultAllow(login.id, botId)
+  return login
+}
+
 export function install(rt) {
   const name = rt.config.browserPlugin
   const injected = rt.config.browserPluginApi
@@ -150,6 +166,7 @@ export function install(rt) {
     onHold: (botId, hold) => rt.browserChannel?.setHold(botId, hold && handoffHold(rt, botId, hold)),
     subscribeHolds: listener => rt.browserChannel?.subscribeHolds?.(listener),
     authorize: (exec, botId, action) => authorizeBrowserAction(rt, exec, botId, action),
+    vault: { login: (exec, botId, url, account) => vaultLogin(rt, exec, botId, url, account), logins: url => rt.vaultLogins(url) },
     completeFor: rt.config.browserComplete
       ? () => rt.config.browserComplete
       : exec => sessionComplete(rt.ctx, exec, rt),

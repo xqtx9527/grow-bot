@@ -6,7 +6,7 @@ Grow Bot is a desktop AI assistant built on [DeepSeek Harness](https://github.co
 a team of long-lived Bots, each with its own conversations, memory, model and working folder, that work
 alone or together in group chats.
 
-> **Preview, version 0.5.1.** Developed on macOS with Apple silicon. Builds are unsigned. Windows support
+> **Preview, version 0.1.0.** Developed on macOS with Apple silicon. Builds are unsigned. Windows support
 > is in the code, but it has not been run yet; see [docs/grow-bot/windows.zh.md](docs/grow-bot/windows.zh.md).
 
 ## What it does

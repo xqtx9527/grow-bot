@@ -5,7 +5,7 @@
 Grow Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 macOS 桌面 AI 助手：
 一组长期在线的 Bot 团队，可以在自己的对话或群聊里协作完成任务。
 
-- 当前版本：**0.5.1**（预览版，尚未签名）
+- 当前版本：**0.1.0**（预览版，尚未签名）
 - 运行环境：macOS（Apple 芯片），基于 DeepSeek Harness 构建
 - 模型：默认走官方 DeepSeek 通道，也可通过 Magpie 网关接入其他模型
 

@@ -1,6 +1,6 @@
 {
   "name": "ds-bot",
-  "version": "0.5.1",
+  "version": "0.1.0",
   "description": "Grow Bot: a team of long-lived Bots, with Main Bots, Bot-to-Bot messages and group chats",
   "keywords": [
     "dsh-plugin",

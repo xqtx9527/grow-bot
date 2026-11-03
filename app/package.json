@@ -1,7 +1,7 @@
 {
   "name": "grow-bot",
   "productName": "Grow Bot",
-  "version": "0.5.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Grow Bot: my own always-on Bot team on DeepSeek Harness.",
   "author": "qinsir",

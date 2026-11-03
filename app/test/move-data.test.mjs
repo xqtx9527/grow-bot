@@ -155,10 +155,15 @@ test('links in the data lead inside the copy, not back into the old folder', asy
   assert.equal(readFileSync(join(to, 'bot', 'absolute', 'g', 's1', 'log.jsonl'), 'utf8'), 'chat')
 })
 
-// Windows makes a link to nothing that is not a folder only with special rights, which the
-// tests do not have, so there it is a link the copy cannot make again.
+// Windows makes a link to nothing that is not a folder only with special rights, so there it
+// is a link the copy cannot make again. A runner with those rights has nothing to show here.
 test('a link the move cannot make again stops the move; the import skips it', { skip: process.platform !== 'win32' }, async (t) => {
   const { root, from } = setup(t)
+  try {
+    symlinkSync(join(root, 'gone'), join(root, 'probe'), 'file')
+    t.skip('this account may make file links')
+    return
+  } catch { /* the usual Windows account: the link below cannot be made again */ }
   symlinkSync(join(root, 'gone'), join(from, 'lost'), 'junction')
   const to = join(root, 'new')
   await assert.rejects(copyData(from, to), { code: 'EPERM' })
